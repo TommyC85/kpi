@@ -1,0 +1,12 @@
+# credenziali locali — MAI committare
+secrets.env
+.env
+.env.local
+# output generati
+kpi/index.html
+kpi/.htaccess
+preview.html
+index.html
+history.json
+__pycache__/
+*.pyc
