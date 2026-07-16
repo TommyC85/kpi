@@ -1,9 +1,8 @@
-name: KPI Dashboard settimanale
+name: KPI Dashboard
 
 on:
   schedule:
-    - cron: "46 4 * * 1"   # lun 06:46 IT (dopo il Riepilogo delle 06:36)
-    - cron: "46 5 * * 1"   # backup
+    - cron: "46 4 * * *"   # OGNI GIORNO 06:46 IT — rinfresca lo spaccato moduli Pontoni (cumulativo)
   workflow_dispatch: {}
 
 concurrency:
@@ -61,6 +60,16 @@ jobs:
           ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
         run: python kpi_run.py
 
+      - name: Genera spaccato moduli Pontoni (Odoo)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          ODOO_URL: ${{ secrets.ODOO_URL }}
+          ODOO_DB: ${{ secrets.ODOO_DB }}
+          ODOO_USER: ${{ secrets.ODOO_USER }}
+          ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
+        run: python pontoni_run.py
+
       - name: Deploy su SiteGround (FTPS) — cartella /tommaso/kpi
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
@@ -78,4 +87,7 @@ jobs:
             cd '$FTP_DIR/kpi';
             put -O . kpi/index.html;
             put -O . kpi/.htaccess;
+            mkdir -f -p '$FTP_DIR/kpi/pontoni';
+            put -O pontoni pontoni/index.html;
+            put -O pontoni pontoni/.htaccess;
           "

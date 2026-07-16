@@ -10,3 +10,6 @@ index.html
 history.json
 __pycache__/
 *.pyc
+pontoni/index.html
+pontoni/.htaccess
+pontoni_moduli_data.json
