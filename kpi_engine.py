@@ -184,14 +184,23 @@ def _pontoni(token, since, until, ref):
         "spend": round(spend, 2), "leads": leads,
         "cpl": round(spend / leads, 2) if leads else None,
         "spend_month": round(spend * WEEKS_PER_MONTH, 0),
-        "quality_pct": None, "types": None, "trend": None, "odoo_error": None,
+        "quality_pct": None, "types": None, "modules": None, "trend": None, "odoo_error": None,
     }
     # Odoo (sola lettura) — funnel qualità + trend costo/appuntamento
     try:
         import odoo
         cs = (ref - timedelta(days=90)).isoformat()
         cu = (ref - timedelta(days=15)).isoformat()
-        types = odoo.funnel_by_type(cs, cu)
+        modules = odoo.funnel_by_campaign(cs, cu)   # spaccato per singola campagna/modulo
+        out["modules"] = modules
+        # aggrega per tipo (per quality mix) dai moduli
+        types = {}
+        for mdl in modules:
+            t = types.setdefault(mdl["type"], {"lead": 0, "appt": 0})
+            t["lead"] += mdl["lead"]
+            t["appt"] += mdl["appt"]
+        for t in types.values():
+            t["rate"] = round(100 * t["appt"] / t["lead"], 1) if t["lead"] else 0.0
         out["types"] = types
         total = sum(t["lead"] for t in types.values())
         high = sum(t["lead"] for n, t in types.items() if n in ("Landing", "Qualificati"))

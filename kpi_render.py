@@ -8,6 +8,7 @@ Uso:
     from kpi_render import render_kpi ; html = render_kpi(model)
 """
 
+import re
 from datetime import date
 
 CSS = """
@@ -103,8 +104,9 @@ CSS = """
   .insight{margin:12px 22px 4px;padding:14px 16px;border:1px dashed var(--line);border-radius:12px;background:var(--panel-2)}
   .insight h4{margin:0 0 3px;font-size:13px;font-weight:700}
   .insight p{margin:0 0 12px;font-size:12px;color:var(--ink-2)}
-  .bar{display:grid;grid-template-columns:130px 1fr 46px;align-items:center;gap:10px;margin:7px 0;font-size:12px}
-  .bar .bl{color:var(--ink-2)}
+  .bar{display:grid;grid-template-columns:152px 1fr 40px;align-items:center;gap:8px;margin:7px 0;font-size:12px}
+  .bar .bl{color:var(--ink-2);font-size:11px;line-height:1.25}
+  .bar .bl small{color:var(--ink-3)}
   .track{height:14px;background:var(--line-2);border-radius:7px;overflow:hidden}
   .fill{height:100%;border-radius:7px;background:var(--accent)}
   .fill.dim{background:var(--ink-3);opacity:.55}
@@ -236,20 +238,30 @@ def _trend_svg(trend):
     )
 
 
-def _bars(types):
-    """Barre confronto moduli dal funnel Odoo per tipo."""
-    order = ["Landing", "Qualificati", "Lead ADS"]
-    items = [(k, types[k]) for k in order if k in types and types[k]["lead"] > 0]
+def _clean_camp(name):
+    """Nome campagna leggibile: toglie [ONLINE]/[TMC]/emoji e spazi doppi."""
+    n = name
+    for junk in ["[ONLINE]", "[TMC]", "🟥"]:
+        n = n.replace(junk, "")
+    n = re.sub(r"\s+", " ", n).strip(" |")
+    return n
+
+
+def _module_bars(modules, min_lead=15, top=8):
+    """Spaccato per singola campagna/modulo (tasso lead→appuntamento)."""
+    items = [m for m in modules if m["lead"] >= min_lead and "?" not in m["campaign"]]
     if not items:
-        return ""
-    mx = max(t["rate"] for _, t in items) or 1
+        return '<p class="mon-p">Nessuna campagna con dati sufficienti nella coorte.</p>'
+    items = sorted(items, key=lambda x: -x["rate"])[:top]
+    mx = max(m["rate"] for m in items) or 1
     rows = ""
-    for k, t in sorted(items, key=lambda x: -x[1]["rate"]):
-        w = 100 * t["rate"] / mx
-        dim = "" if k in ("Landing", "Qualificati") else " dim"
-        rows += (f'<div class="bar"><span class="bl">{k} <small>({t["lead"]} lead)</small></span>'
+    for m in items:
+        w = 100 * m["rate"] / mx
+        dim = "" if m["type"] in ("Landing", "Qualificati") else " dim"
+        rows += (f'<div class="bar"><span class="bl">{_clean_camp(m["campaign"])} '
+                 f'<small>({m["lead"]})</small></span>'
                  f'<span class="track"><span class="fill{dim}" style="width:{w:.0f}%"></span></span>'
-                 f'<span class="pc">{t["rate"]:.0f}%</span></div>')
+                 f'<span class="pc">{m["rate"]:.0f}%</span></div>')
     return rows
 
 
@@ -303,10 +315,12 @@ def render_kpi(m: dict) -> str:
     q_pill = pill("warn","Mix da spostare") if (q is None or q < 50) else pill("good","OK")
     sp_month = P["spend_month"]
     sp_pill_pct = round(100 * sp_month / m["targets"]["pontoni_spend"]) if sp_month else 0
-    if P.get("types"):
-        panel_right = f'<div class="insight" style="margin:0"><h4>Confronto moduli (leva sulla qualità)</h4><p>Tasso lead→appuntamento, coorte matura.</p>{_bars(P["types"])}</div>'
+    if P.get("modules"):
+        panel_right = (f'<div class="insight" style="margin:0"><h4>Spaccato per modulo (leva sulla qualità)</h4>'
+                       f'<p>Tasso lead→appuntamento per campagna (coorte matura, ≥15 lead). Tra parentesi i lead.</p>'
+                       f'{_module_bars(P["modules"])}</div>')
     else:
-        panel_right = f'<div class="insight" style="margin:0"><h4>Confronto moduli</h4><p>Dati Odoo temporaneamente non disponibili.<br><small>{P.get("odoo_error","")}</small></p></div>'
+        panel_right = f'<div class="insight" style="margin:0"><h4>Spaccato per modulo</h4><p>Dati Odoo temporaneamente non disponibili.<br><small>{P.get("odoo_error","")}</small></p></div>'
     if P.get("trend"):
         chart = _trend_svg(P["trend"])
         mon = (f'<div class="mon"><span class="mon-tag">◑ Dato monitorato · non è un obiettivo del media buyer</span>'

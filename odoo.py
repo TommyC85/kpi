@@ -94,6 +94,29 @@ def funnel_by_type(since: str, until: str) -> dict:
     return out
 
 
+def funnel_by_campaign(since: str, until: str) -> list:
+    """Coorte matura → [{campaign, lead, appt, rate}] per singola campagna [TMC],
+    ordinato per tasso appuntamento decrescente. Lo 'spaccato dei moduli'."""
+    models, db, uid, key = _client()
+    dom = [["create_date", ">=", since], ["create_date", "<", until],
+           ["campaign_id.name", "ilike", CAMPAIGN_FILTER]]
+    rows = _read_group(models, db, uid, key, dom, ["campaign_id", "stage_id"])
+    agg = {}
+    for r in rows:
+        camp = (r["campaign_id"] or [0, ""])[1]
+        st = (r["stage_id"] or [0, "?"])[1]
+        c = r.get("__count", 0)
+        d = agg.setdefault(camp, {"lead": 0, "appt": 0})
+        d["lead"] += c
+        if st in APPT_STAGES:
+            d["appt"] += c
+    out = [{"campaign": name, "type": _campaign_type(name), "lead": d["lead"], "appt": d["appt"],
+            "rate": round(100 * d["appt"] / d["lead"], 1) if d["lead"] else 0.0}
+           for name, d in agg.items()]
+    out.sort(key=lambda x: -x["rate"])
+    return out
+
+
 def quality_mix(since: str, until: str) -> dict:
     """% di lead da campagne ad alta conversione (Landing + Qualificati) sul totale [TMC]."""
     types = funnel_by_type(since, until)
