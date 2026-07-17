@@ -20,7 +20,8 @@ import certifi
 import requests
 
 ACC_PONTONI = "act_1143079700337559"
-BOOKED = {"Fissato", "No show", "Presentato"}
+# A Pontoni interessa chi si è PRESENTATO all'appuntamento (non solo prenotato).
+BOOKED = {"Presentato"}
 N_WEEKS = 12
 
 

@@ -26,15 +26,10 @@ import certifi
 # Filtro campagne: solo quelle a pagamento gestite da noi.
 CAMPAIGN_FILTER = "[TMC]"
 
-# Fasi crm.lead che implicano un appuntamento fissato (a valle del semplice lead).
-# La `sequence` di Odoo NON riflette l'ordine reale del funnel → si classifica per nome.
-APPT_STAGES = {
-    "No Show", "Offerta Si", "Offerta No", "Fissa appuntamento Front",
-    "Trattative da chiudere Audiopro", "Visita < 7gg", "Visite < 45gg",
-    "ASL in corso", "Prova in corso", "Won",
-    "Consegnato da saldare (WIP🛠️)", "Saldato (WIP🛠️)",
-}
-WON_STAGES = {"Won", "Consegnato da saldare (WIP🛠️)", "Saldato (WIP🛠️)"}
+# "Appuntamento" = campo NATIVO Pontoni `x_studio_stato_appuntamento`.
+# A Pontoni interessa chi si è PRESENTATO all'appuntamento (non solo prenotato).
+STATO_FIELD = "x_studio_stato_appuntamento"
+APPT_STATUSES = {"Presentato"}
 
 
 _CLIENT = None  # cache: una sola authenticate per processo (evita il throttle login di Odoo)
@@ -79,15 +74,15 @@ def funnel_by_type(since: str, until: str) -> dict:
     models, db, uid, key = _client()
     dom = [["create_date", ">=", since], ["create_date", "<", until],
            ["campaign_id.name", "ilike", CAMPAIGN_FILTER]]
-    rows = _read_group(models, db, uid, key, dom, ["campaign_id", "stage_id"])
+    rows = _read_group(models, db, uid, key, dom, ["campaign_id", STATO_FIELD])
     out = {}
     for r in rows:
         camp = (r["campaign_id"] or [0, ""])[1]
-        st = (r["stage_id"] or [0, "?"])[1]
+        st = r.get(STATO_FIELD) or "No app"
         c = r.get("__count", 0)
         t = out.setdefault(_campaign_type(camp), {"lead": 0, "appt": 0})
         t["lead"] += c
-        if st in APPT_STAGES:
+        if st in APPT_STATUSES:
             t["appt"] += c
     for t in out.values():
         t["rate"] = round(100 * t["appt"] / t["lead"], 1) if t["lead"] else 0.0
@@ -100,15 +95,15 @@ def funnel_by_campaign(since: str, until: str) -> list:
     models, db, uid, key = _client()
     dom = [["create_date", ">=", since], ["create_date", "<", until],
            ["campaign_id.name", "ilike", CAMPAIGN_FILTER]]
-    rows = _read_group(models, db, uid, key, dom, ["campaign_id", "stage_id"])
+    rows = _read_group(models, db, uid, key, dom, ["campaign_id", STATO_FIELD])
     agg = {}
     for r in rows:
         camp = (r["campaign_id"] or [0, ""])[1]
-        st = (r["stage_id"] or [0, "?"])[1]
+        st = r.get(STATO_FIELD) or "No app"
         c = r.get("__count", 0)
         d = agg.setdefault(camp, {"lead": 0, "appt": 0})
         d["lead"] += c
-        if st in APPT_STAGES:
+        if st in APPT_STATUSES:
             d["appt"] += c
     out = [{"campaign": name, "type": _campaign_type(name), "lead": d["lead"], "appt": d["appt"],
             "rate": round(100 * d["appt"] / d["lead"], 1) if d["lead"] else 0.0}
@@ -133,9 +128,9 @@ def appointments_by_month(months: list) -> dict:
     for label, since, until in months:
         dom = [["create_date", ">=", since], ["create_date", "<=", until + " 23:59:59"],
                ["campaign_id.name", "ilike", CAMPAIGN_FILTER]]
-        rows = _read_group(models, db, uid, key, dom, ["stage_id"])
+        rows = _read_group(models, db, uid, key, dom, [STATO_FIELD])
         lead = sum(r.get("__count", 0) for r in rows)
-        appt = sum(r.get("__count", 0) for r in rows if (r["stage_id"] or [0, "?"])[1] in APPT_STAGES)
+        appt = sum(r.get("__count", 0) for r in rows if (r.get(STATO_FIELD) or "No app") in APPT_STATUSES)
         out[label] = {"lead": lead, "appt": appt}
     return out
 

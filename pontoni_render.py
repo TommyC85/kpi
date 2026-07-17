@@ -49,7 +49,23 @@ tbody tr.tot td{border-top:2px solid var(--line);border-bottom:none;font-weight:
 .tag.land{color:var(--good);background:var(--good-bg)}.tag.lead{color:var(--warn);background:var(--warn-bg)}
 .foot{margin-top:22px;font-size:12px;color:var(--ink-3);line-height:1.6}.foot b{color:var(--ink-2)}
 .note{margin-top:14px;padding:12px 16px;border:1px dashed var(--line);border-radius:12px;background:var(--panel-2);font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.topnav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin-bottom:22px;box-shadow:var(--shadow)}
+.topnav .brand{font-weight:750;font-size:13.5px}
+.topnav .links{display:flex;gap:4px;flex-wrap:wrap}
+.topnav a{font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;padding:6px 12px;border-radius:8px}
+.topnav a:hover{background:var(--panel-2);color:var(--ink)}
+.topnav a.active{background:var(--accent-soft);color:var(--accent)}
 """
+
+def nav(active):
+    def a(href, label, key):
+        cls = ' class="active"' if key == active else ""
+        return f'<a href="{href}"{cls}>{label}</a>'
+    return ('<nav class="topnav"><span class="brand">📊 Media Buying</span><div class="links">'
+            + a("/tommaso/", "Riepilogo", "riepilogo")
+            + a("/tommaso/kpi/", "KPI clienti", "kpi")
+            + a("/tommaso/kpi/pontoni/", "Pontoni · moduli", "pontoni")
+            + "</div></nav>")
 
 def build(data: dict) -> str:
     weeks = data["weeks"]
@@ -59,7 +75,7 @@ def build(data: dict) -> str:
   <div>
     <div class="eyebrow">Pontoni · Centri acustici</div>
     <h1>Spaccato moduli — appuntamenti</h1>
-    <p class="sub">Lead entrati e <b>appuntamenti fissati</b> per modulo. Solo moduli attivi. Numeri assoluti.</p>
+    <p class="sub">Lead entrati e <b>appuntamenti presentati</b> per modulo. Solo moduli attivi. Numeri assoluti.</p>
   </div>
   <div class="wk"><label for="wksel">Settimana</label>
     <select id="wksel">{"".join(f'<option value="{i}"{" selected" if i==default else ""}>{w}</option>' for i,w in enumerate(weeks))}</select>
@@ -77,12 +93,12 @@ def build(data: dict) -> str:
 <div class="tablewrap"><table>
   <thead>
     <tr class="grp"><th class="l"></th><th></th><th colspan="2" id="wkhead">Settimana</th><th colspan="3" class="sep">Cumulativo (dalla creazione)</th><th class="sep">Costo/app</th></tr>
-    <tr><th class="l">Modulo</th><th class="l">Fonte</th><th>Lead</th><th>App. fissati</th><th class="sep">Lead</th><th>App. fissati</th><th>%</th><th class="sep">€/app (fonte)</th></tr>
+    <tr><th class="l">Modulo</th><th class="l">Fonte</th><th>Lead</th><th>Presentati</th><th class="sep">Lead</th><th>Presentati</th><th>%</th><th class="sep">€/app (fonte)</th></tr>
   </thead>
   <tbody id="rows"></tbody>
 </table></div>
 
-<div class="note"><b>Definizione:</b> "appuntamento fissato" = campo Odoo <b>Stato appuntamento</b> ∈ (Fissato · No show · Presentato), cioè prenotati. ·
+<div class="note"><b>Definizione:</b> "appuntamento presentato" = campo Odoo <b>Stato appuntamento</b> = <b>Presentato</b> (il cliente si è presentato all'appuntamento — ciò che conta per Pontoni). ·
 <b>Maturità:</b> le settimane recenti hanno pochi appuntamenti perché i lead sono appena entrati e non ancora lavorati → guarda settimane di 3+ settimane fa per numeri stabili; il <b>cumulativo</b> è sempre affidabile.</div>
 
 <div class="foot"><b>Fonti:</b> Odoo (appuntamenti, sola lettura) + Meta (spesa, per fonte). Costo/appuntamento per fonte = spesa Meta della fonte ÷ appuntamenti fissati della fonte. Generato {data['generated']}.</div>
