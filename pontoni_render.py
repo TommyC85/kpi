@@ -72,6 +72,7 @@ def build(data: dict) -> str:
     weeks = data["weeks"]
     default = len(weeks) - 2 if len(weeks) >= 2 else len(weeks) - 1
     body = f"""<div class="wrap"><div class="inner">
+{nav("pontoni")}
 <div class="head">
   <div>
     <div class="eyebrow">Pontoni · Centri acustici</div>
