@@ -1,38 +1,24 @@
 #!/usr/bin/env python3
 """
-Costruisce i dati dello 'Spaccato moduli Pontoni' (Odoo + Meta).
+Dati 'Spaccato moduli Pontoni' (Odoo + Meta).
 
-Per ogni modulo (campagna [TMC]) ATTIVO:
-  - lead entrati + appuntamenti fissati per settimana (ultime N settimane)
-  - cumulativo dalla creazione del modulo
-+ costo per appuntamento per FONTE (Landing / Lead ADS): spesa Meta ÷ appuntamenti.
+Per ogni modulo (campagna [TMC]) ATTIVO: lead entrati + appuntamenti PRESENTATI
+(dominio ufficiale Pontoni, vedi odoo.py) per settimana e cumulativo dalla creazione.
++ costo per appuntamento presentato per FONTE (Landing / Lead ADS).
 
-"Appuntamento fissato" = campo Odoo `x_studio_stato_appuntamento` ∈ (Fissato, No show, Presentato).
 Odoo: SOLA LETTURA. Env: ODOO_*, META_TOKEN (o passato).
 """
 import json
 import os
-import ssl
-import xmlrpc.client
 from datetime import date, datetime, timedelta
 
 import certifi
 import requests
 
+import odoo  # riuso connessione + dominio ufficiale (PRES_DOMAIN / LEAD_ACTIVE)
+
 ACC_PONTONI = "act_1143079700337559"
-# A Pontoni interessa chi si è PRESENTATO all'appuntamento (non solo prenotato).
-BOOKED = {"Presentato"}
 N_WEEKS = 12
-
-
-def _odoo():
-    url = os.environ["ODOO_URL"].rstrip("/"); db = os.environ["ODOO_DB"]
-    user = os.environ["ODOO_USER"]; key = os.environ["ODOO_API_KEY"]
-    ctx = ssl.create_default_context(cafile=certifi.where())
-    uid = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common", context=ctx).authenticate(db, user, key, {})
-    if not uid:
-        raise RuntimeError("Odoo authenticate fallita")
-    return xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object", context=ctx), db, uid, key
 
 
 def _clean(c):
@@ -48,46 +34,43 @@ def _isoweek(d):
     return f"{y}-W{w:02d}"
 
 
+def _parse_weeks(rows):
+    out = {}
+    for r in rows:
+        c = (r["campaign_id"] or [0, ""])[1]; wl = r.get("create_date:week")
+        if not wl:
+            continue
+        ww, yy = wl.replace("W", "").split()
+        out.setdefault(c, {})[f"{yy}-W{int(ww):02d}"] = r["__count"]
+    return out
+
+
 def build_data(token: str, ref: date = None) -> dict:
     ref = ref or date.today()
-    M, db, uid, key = _odoo()
-
-    def rg(dom, gb):
-        return M.execute_kw(db, uid, key, "crm.lead", "read_group", [dom, [], gb], {"lazy": False})
-
     monday = ref - timedelta(days=ref.weekday())
     weeks = [_isoweek(monday - timedelta(days=7 * i)) for i in range(N_WEEKS)][::-1]
     since = (monday - timedelta(days=7 * (N_WEEKS - 1))).isoformat()
+    camp = [("campaign_id.name", "ilike", odoo.CAMPAIGN_FILTER)]
 
-    # cumulativo per modulo
-    CUM = {}
-    for r in rg([["campaign_id.name", "ilike", "[TMC]"]], ["campaign_id", "x_studio_stato_appuntamento"]):
-        c = (r["campaign_id"] or [0, ""])[1]; st = r.get("x_studio_stato_appuntamento") or "No app"
-        d = CUM.setdefault(c, {"lead": 0, "appt": 0}); d["lead"] += r["__count"]
-        if st in BOOKED:
-            d["appt"] += r["__count"]
-    # attivi = lead negli ultimi 14 giorni
+    # Odoo: cumulativo, attivi, settimanale (lead entrati + presentati)
+    cum_lead = odoo._by_campaign(camp + odoo.LEAD_ACTIVE)
+    cum_pres = odoo._by_campaign(odoo.PRES_DOMAIN + camp)
     d14 = (ref - timedelta(days=14)).isoformat()
-    active = {(r["campaign_id"] or [0, ""])[1] for r in
-              rg([["campaign_id.name", "ilike", "[TMC]"], ["create_date", ">=", d14]], ["campaign_id"]) if r["__count"]}
-    # settimanale per modulo
-    WK = {}
-    for r in rg([["campaign_id.name", "ilike", "[TMC]"], ["create_date", ">=", since]],
-                ["campaign_id", "create_date:week", "x_studio_stato_appuntamento"]):
-        wlabel = r.get("create_date:week")
-        if not wlabel:
-            continue
-        c = (r["campaign_id"] or [0, ""])[1]; st = r.get("x_studio_stato_appuntamento") or "No app"
-        ww, yy = wlabel.replace("W", "").split(); iso = f"{yy}-W{int(ww):02d}"
-        d = WK.setdefault(c, {}).setdefault(iso, {"lead": 0, "appt": 0}); d["lead"] += r["__count"]
-        if st in BOOKED:
-            d["appt"] += r["__count"]
+    active = set(odoo._by_campaign(camp + odoo.LEAD_ACTIVE + [("create_date", ">=", d14)]).keys())
+    win = [("create_date", ">=", since)]
+    wl = _parse_weeks(odoo._rg(camp + odoo.LEAD_ACTIVE + win, ["campaign_id", "create_date:week"]))
+    wp = _parse_weeks(odoo._rg(odoo.PRES_DOMAIN + camp + win, ["campaign_id", "create_date:week"]))
 
-    modules = [{"name": _clean(c), "source": _source(c), "cum": d, "weekly": WK.get(c, {})}
-               for c, d in CUM.items() if c in active and "?" not in c]
+    modules = []
+    for c, nlead in cum_lead.items():
+        if c not in active or "?" in c:
+            continue
+        weekly = {w: {"lead": wl.get(c, {}).get(w, 0), "appt": wp.get(c, {}).get(w, 0)} for w in weeks}
+        modules.append({"name": _clean(c), "source": _source(c),
+                        "cum": {"lead": nlead, "appt": cum_pres.get(c, 0)}, "weekly": weekly})
     modules.sort(key=lambda m: -m["cum"]["lead"])
 
-    # Meta spesa per fonte
+    # Meta: spesa per fonte
     def meta(since_d, until_d, inc=None):
         p = {"access_token": token, "level": "campaign",
              "time_range": json.dumps({"since": since_d, "until": until_d}),

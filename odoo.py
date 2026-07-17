@@ -2,19 +2,16 @@
 """
 Connettore Odoo (Pontoni) — SOLA LETTURA.
 
-Usa esclusivamente metodi di lettura dell'API esterna XML-RPC
-(`search_count`, `read_group`) — nessun create/write/unlink: è read-only
-per costruzione, non solo per permessi.
+Usa solo metodi di lettura (`search_count`, `read_group`) — nessun create/write/unlink.
 
-Fornisce, per il funnel commerciale di Pontoni:
-  - funnel_by_type(since, until)   : tasso lead→appuntamento per tipo di modulo
-                                     (Landing / Lead ADS / Qualificati) — leva qualità
-  - quality_mix(since, until)      : % di lead da campagne ad alta conversione
-  - appointments_by_month(months)  : nr. appuntamenti per coorte mensile (per il trend)
+"Appuntamento presentato (vendibile)" = dominio ufficiale del tecnico Pontoni:
+  type=opportunity, lost_reason_id NOT IN [12],
+  calendar_event_ids.esito_appuntamento_ids.presentato = 'presentato',
+  active IN [True, False]   (include gli archiviati: vinti/persi)
+"Lead entrati" = tutti i crm.lead della campagna con active IN [True, False].
 
 Variabili d'ambiente: ODOO_URL, ODOO_DB, ODOO_USER, ODOO_API_KEY.
-Se mancano, le funzioni sollevano RuntimeError: il chiamante deve gestirlo
-(la dashboard resta viva anche senza Odoo).
+Se mancano, le funzioni sollevano RuntimeError (il chiamante degrada con grazia).
 """
 
 import os
@@ -23,16 +20,19 @@ import xmlrpc.client
 
 import certifi
 
-# Filtro campagne: solo quelle a pagamento gestite da noi.
 CAMPAIGN_FILTER = "[TMC]"
 
-# "Appuntamento" = campo NATIVO Pontoni `x_studio_stato_appuntamento`.
-# A Pontoni interessa chi si è PRESENTATO all'appuntamento (non solo prenotato).
-STATO_FIELD = "x_studio_stato_appuntamento"
-APPT_STATUSES = {"Presentato"}
+# Dominio ufficiale Pontoni per "presentato ipoacusico" (il vendibile).
+PRES_DOMAIN = [
+    ("type", "=", "opportunity"),
+    ("lost_reason_id", "not in", [12]),
+    ("calendar_event_ids.esito_appuntamento_ids.presentato", "=", "presentato"),
+    ("active", "in", [True, False]),
+]
+# Denominatore "lead entrati": tutti i record (anche archiviati).
+LEAD_ACTIVE = [("active", "in", [True, False])]
 
-
-_CLIENT = None  # cache: una sola authenticate per processo (evita il throttle login di Odoo)
+_CLIENT = None  # una sola authenticate per processo (evita il throttle login di Odoo)
 
 
 def _client():
@@ -49,15 +49,20 @@ def _client():
     ctx = ssl.create_default_context(cafile=certifi.where())
     uid = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common", context=ctx).authenticate(db, user, key, {})
     if not uid:
-        raise RuntimeError("Odoo: authenticate fallita (db/utente/chiave o login temporaneamente in throttle).")
+        raise RuntimeError("Odoo: authenticate fallita (db/utente/chiave o login in throttle).")
     models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object", context=ctx)
     _CLIENT = (models, db, uid, key)
     return _CLIENT
 
 
-def _read_group(models, db, uid, key, domain, groupby):
-    return models.execute_kw(db, uid, key, "crm.lead", "read_group",
-                             [domain, [], groupby], {"lazy": False})
+def _rg(dom, groupby):
+    models, db, uid, key = _client()
+    return models.execute_kw(db, uid, key, "crm.lead", "read_group", [dom, [], groupby], {"lazy": False})
+
+
+def _count(dom):
+    models, db, uid, key = _client()
+    return models.execute_kw(db, uid, key, "crm.lead", "search_count", [dom])
 
 
 def _campaign_type(name: str) -> str:
@@ -69,78 +74,57 @@ def _campaign_type(name: str) -> str:
     return "Lead ADS"
 
 
+def _by_campaign(dom):
+    return {(r["campaign_id"] or [0, ""])[1]: r["__count"] for r in _rg(dom, ["campaign_id"])}
+
+
+def funnel_by_campaign(since: str, until: str) -> list:
+    """[{campaign, type, lead, appt, rate}] per campagna [TMC], coorte per create_date.
+    appt = presentati (dominio ufficiale); lead = record entrati (active T/F)."""
+    win = [("create_date", ">=", since), ("create_date", "<", until)]
+    camp = [("campaign_id.name", "ilike", CAMPAIGN_FILTER)]
+    leads = _by_campaign(camp + LEAD_ACTIVE + win)
+    pres = _by_campaign(PRES_DOMAIN + camp + win)
+    out = [{"campaign": c, "type": _campaign_type(c), "lead": n, "appt": pres.get(c, 0),
+            "rate": round(100 * pres.get(c, 0) / n, 1) if n else 0.0}
+           for c, n in leads.items()]
+    out.sort(key=lambda x: -x["rate"])
+    return out
+
+
 def funnel_by_type(since: str, until: str) -> dict:
-    """Coorte matura → {tipo: {lead, appt, rate}}. `since`/`until` = 'YYYY-MM-DD'."""
-    models, db, uid, key = _client()
-    dom = [["create_date", ">=", since], ["create_date", "<", until],
-           ["campaign_id.name", "ilike", CAMPAIGN_FILTER]]
-    rows = _read_group(models, db, uid, key, dom, ["campaign_id", STATO_FIELD])
+    """{tipo: {lead, appt, rate}} aggregando le campagne."""
     out = {}
-    for r in rows:
-        camp = (r["campaign_id"] or [0, ""])[1]
-        st = r.get(STATO_FIELD) or "No app"
-        c = r.get("__count", 0)
-        t = out.setdefault(_campaign_type(camp), {"lead": 0, "appt": 0})
-        t["lead"] += c
-        if st in APPT_STATUSES:
-            t["appt"] += c
+    for m in funnel_by_campaign(since, until):
+        t = out.setdefault(m["type"], {"lead": 0, "appt": 0})
+        t["lead"] += m["lead"]; t["appt"] += m["appt"]
     for t in out.values():
         t["rate"] = round(100 * t["appt"] / t["lead"], 1) if t["lead"] else 0.0
     return out
 
 
-def funnel_by_campaign(since: str, until: str) -> list:
-    """Coorte matura → [{campaign, lead, appt, rate}] per singola campagna [TMC],
-    ordinato per tasso appuntamento decrescente. Lo 'spaccato dei moduli'."""
-    models, db, uid, key = _client()
-    dom = [["create_date", ">=", since], ["create_date", "<", until],
-           ["campaign_id.name", "ilike", CAMPAIGN_FILTER]]
-    rows = _read_group(models, db, uid, key, dom, ["campaign_id", STATO_FIELD])
-    agg = {}
-    for r in rows:
-        camp = (r["campaign_id"] or [0, ""])[1]
-        st = r.get(STATO_FIELD) or "No app"
-        c = r.get("__count", 0)
-        d = agg.setdefault(camp, {"lead": 0, "appt": 0})
-        d["lead"] += c
-        if st in APPT_STATUSES:
-            d["appt"] += c
-    out = [{"campaign": name, "type": _campaign_type(name), "lead": d["lead"], "appt": d["appt"],
-            "rate": round(100 * d["appt"] / d["lead"], 1) if d["lead"] else 0.0}
-           for name, d in agg.items()]
-    out.sort(key=lambda x: -x["rate"])
-    return out
-
-
 def quality_mix(since: str, until: str) -> dict:
-    """% di lead da campagne ad alta conversione (Landing + Qualificati) sul totale [TMC]."""
     types = funnel_by_type(since, until)
     total = sum(t["lead"] for t in types.values())
-    high = sum(t["lead"] for name, t in types.items() if name in ("Landing", "Qualificati"))
-    return {"high": high, "total": total,
-            "pct": round(100 * high / total) if total else 0}
+    high = sum(t["lead"] for n, t in types.items() if n in ("Landing", "Qualificati"))
+    return {"high": high, "total": total, "pct": round(100 * high / total) if total else 0}
 
 
 def appointments_by_month(months: list) -> dict:
-    """months = [(label, since, until), ...] → {label: {'lead':n, 'appt':n}} per coorte."""
-    models, db, uid, key = _client()
+    """months=[(label,since,until)] → {label:{'lead':n,'appt':n}} (presentati / entrati)."""
+    camp = [("campaign_id.name", "ilike", CAMPAIGN_FILTER)]
     out = {}
-    for label, since, until in months:
-        dom = [["create_date", ">=", since], ["create_date", "<=", until + " 23:59:59"],
-               ["campaign_id.name", "ilike", CAMPAIGN_FILTER]]
-        rows = _read_group(models, db, uid, key, dom, [STATO_FIELD])
-        lead = sum(r.get("__count", 0) for r in rows)
-        appt = sum(r.get("__count", 0) for r in rows if (r.get(STATO_FIELD) or "No app") in APPT_STATUSES)
-        out[label] = {"lead": lead, "appt": appt}
+    for label, s, u in months:
+        win = [("create_date", ">=", s), ("create_date", "<=", u + " 23:59:59")]
+        out[label] = {"lead": _count(camp + LEAD_ACTIVE + win),
+                      "appt": _count(PRES_DOMAIN + camp + win)}
     return out
 
 
 if __name__ == "__main__":
     import json
     from datetime import date, timedelta
-    since = (date.today() - timedelta(days=90)).isoformat()
-    until = (date.today() - timedelta(days=15)).isoformat()
-    print("funnel_by_type:", json.dumps(funnel_by_type(since, until), ensure_ascii=False))
-    print("quality_mix:", json.dumps(quality_mix(since, until), ensure_ascii=False))
-    months = [("2026-05", "2026-05-01", "2026-05-31"), ("2026-06", "2026-06-01", "2026-06-30")]
-    print("appointments_by_month:", json.dumps(appointments_by_month(months), ensure_ascii=False))
+    s = (date.today() - timedelta(days=90)).isoformat()
+    u = (date.today() - timedelta(days=15)).isoformat()
+    print("funnel_by_type:", json.dumps(funnel_by_type(s, u), ensure_ascii=False))
+    print("quality_mix:", json.dumps(quality_mix(s, u), ensure_ascii=False))

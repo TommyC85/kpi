@@ -221,6 +221,39 @@ def _pontoni(token, since, until, ref):
     return out
 
 
+def _pontoni_meta(token, since, until):
+    """Solo parte Meta di Pontoni (per la serie settimanale, senza Odoo)."""
+    ins = _insights(ACC_PONTONI, token, since, until)
+    spend = ins["spend"]; leads = _act(ins["actions"], LEAD_KEYS)
+    return {"spend": round(spend, 2), "leads": leads,
+            "cpl": round(spend / leads, 2) if leads else None}
+
+
+def _isoweek(d):
+    y, w, _ = d.isocalendar()
+    return f"{y}-W{w:02d}"
+
+
+def build_weekly_series(ref: date, token: str, n: int = 8) -> dict:
+    """Serie degli ultimi n settimane (Lun–Dom) coi KPI Meta+Woo per cliente.
+    NON include Odoo (i pannelli Pontoni restano coorte/trend)."""
+    start, end = last_week(ref)
+    weeks, data = [], {}
+    for i in range(n):
+        s = start - timedelta(days=7 * i); e = end - timedelta(days=7 * i)
+        wl = _isoweek(s); weeks.append(wl)
+        si, ui = s.isoformat(), e.isoformat()
+        b = _balducci(token, si, ui); v = _varini(token, si, ui)
+        d = _didomenico(token, si, ui); p = _pontoni_meta(token, si, ui)
+        b["activity"] = _activity(ACC_BALDUCCI, token, si, ui)
+        v["activity"] = _activity(ACC_VARINI, token, si, ui)
+        p["activity"] = _activity(ACC_PONTONI, token, si, ui)
+        d["activity"] = _activity(ACC_DIDOM, token, si, ui)
+        data[wl] = {"balducci": b, "varini": v, "pontoni": p, "didomenico": d,
+                    "range": f"{s.strftime('%d/%m')}–{e.strftime('%d/%m')}"}
+    return {"weeks": list(reversed(weeks)), "data": data}
+
+
 def build_kpi(ref: date, token: str) -> dict:
     start, end = last_week(ref)
     since, until = start.isoformat(), end.isoformat()
