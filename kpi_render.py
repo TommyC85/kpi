@@ -142,6 +142,8 @@ CSS = """
   .topnav a{font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;padding:6px 12px;border-radius:8px}
   .topnav a:hover{background:var(--panel-2);color:var(--ink)}
   .topnav a.active{background:var(--accent-soft);color:var(--accent)}
+  .wksel-wrap{display:inline-flex;align-items:center;gap:5px}
+  #wksel{font-family:var(--mono);font-size:13px;font-weight:600;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
 """
 
 
@@ -284,8 +286,8 @@ def _module_bars(modules, min_lead=15, top=8):
     return rows
 
 
-# ── render principale ─────────────────────────────────────────────────────────
-def render_kpi(m: dict) -> str:
+# ── contenuto (strip + 4 card) — dipende dalla settimana ──────────────────────
+def _cards(m: dict) -> str:
     wpm = m["weeks_per_month"]
     def wk(x):  # target settimanale da mensile
         return x / wpm
@@ -401,23 +403,87 @@ def render_kpi(m: dict) -> str:
             f'Costo/appuntamento Pontoni: dato di contesto (coorte matura), non un obiettivo del media buyer. '
             f'Aggiornato automaticamente ogni lunedì.</div>')
 
-    body = f"""<div class="wrap"><div class="inner">
+    return (f'<section class="strip">{strip}</section>\n{pontoni}\n{varini}\n{balducci}\n{didom}')
+
+
+def _legend_foot(m):
+    legend = """
+  <section class="legend">
+    <div class="lg"><div class="kick">Livello 1 — controllo</div><h3>KPI di controllo</h3><p>CPA/CPL, % budget sui vincenti, disciplina di tracking, velocità di test, <b>traiettoria</b> verso il target: guidati dal media buyer.</p></div>
+    <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti presentati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
+  </section>"""
+    foot = ('<div class="foot"><b>Fonti:</b> Meta Ads · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
+            'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su libro €37. '
+            'Costo/appuntamento Pontoni: dato di contesto (coorte matura), non un obiettivo del media buyer. '
+            'Aggiornato automaticamente ogni giorno.</div>')
+    return legend + foot
+
+
+def render_kpi(m: dict) -> str:
+    """Scorecard singola settimana (compatibilità)."""
+    head = f"""<div class="wrap"><div class="inner">
   {nav("kpi")}
   <header class="masthead">
     <div class="eyebrow">Media Buying · Scorecard settimanale</div>
     <h1>KPI di riferimento — 4 clienti</h1>
-    <p class="sub">Un North Star per cliente (il numero che vale i soldi) e i KPI di controllo a supporto. Target e valore reale a confronto.</p>
-    <div class="meta-row"><span><b>Settimana:</b> {_fmt(m["week_start"])} – {_fmt(m["week_end"])}</span><span><b>Target settimanali</b> (equiv. mensile nel testo)</span><span><b>Generato:</b> {(m.get("generated_at") or "")[:10]}</span></div>
+    <p class="sub">Un North Star per cliente (il numero che vale i soldi) e i KPI di controllo a supporto.</p>
+    <div class="meta-row"><span><b>Settimana:</b> {_fmt(m["week_start"])} – {_fmt(m["week_end"])}</span></div>
   </header>
-  <section class="strip">{strip}</section>
-  {pontoni}
-  {varini}
-  {balducci}
-  {didom}
-  {legend}
-  {foot}
+  {_cards(m)}
+  {_legend_foot(m)}
 </div></div>"""
-    return f"<style>{CSS}</style>\n{body}"
+    return f"<style>{CSS}</style>\n{head}"
+
+
+def _merge_week(latest: dict, wdata: dict) -> dict:
+    """Modello per una settimana: numeri Meta/Woo della settimana + parte Odoo Pontoni (coorte, condivisa)."""
+    P = dict(wdata["pontoni"])  # spend, leads, cpl (settimana)
+    lp = latest["pontoni"]
+    P["spend_month"] = round(P["spend"] * latest["weeks_per_month"], 0)
+    for k in ("quality_pct", "types", "modules", "trend", "odoo_error"):
+        P[k] = lp.get(k)
+    return {"targets": latest["targets"], "weeks_per_month": latest["weeks_per_month"],
+            "balducci": wdata["balducci"], "varini": wdata["varini"],
+            "pontoni": P, "didomenico": wdata["didomenico"]}
+
+
+def render_kpi_multiweek(latest: dict, series: dict) -> str:
+    """Scorecard con SELEZIONATORE settimana: N settimane pre-renderizzate, JS ne mostra una."""
+    weeks = series["weeks"]  # dal più vecchio al più recente
+    default = len(weeks) - 1
+    opts = "".join(
+        f'<option value="{i}"{" selected" if i == default else ""}>{w} ({series["data"][w]["range"]})</option>'
+        for i, w in enumerate(weeks))
+    views = ""
+    for i, w in enumerate(weeks):
+        cards = _cards(_merge_week(latest, series["data"][w]))
+        style = "" if i == default else ' style="display:none"'
+        views += f'<section class="weekview" data-w="{i}"{style}>{cards}</section>'
+    gen = latest.get("generated_at") or ""
+    head = f"""<div class="wrap"><div class="inner">
+  {nav("kpi")}
+  <header class="masthead">
+    <div class="eyebrow">Media Buying · Scorecard settimanale</div>
+    <h1>KPI di riferimento — 4 clienti</h1>
+    <p class="sub">Un North Star per cliente e i KPI di controllo. Scegli la settimana dal menu.</p>
+    <div class="meta-row">
+      <span class="wksel-wrap"><b>Settimana:</b>
+        <select id="wksel">{opts}</select></span>
+      <span><b>Generato:</b> {gen[:16].replace("T"," ")}</span>
+    </div>
+  </header>
+  <div id="weekviews">{views}</div>
+  {_legend_foot(latest)}
+</div></div>
+<script>
+const sel=document.getElementById('wksel');
+function showWeek(){{
+  const i=sel.value;
+  document.querySelectorAll('.weekview').forEach(v=>{{v.style.display = (v.dataset.w===i)?'':'none';}});
+}}
+sel.addEventListener('change', showWeek); showWeek();
+</script>"""
+    return f"<style>{CSS}</style>\n{head}"
 
 
 def cpl_pill_badge(cpl_pill):

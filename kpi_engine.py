@@ -237,6 +237,30 @@ def _isoweek(d):
 def build_weekly_series(ref: date, token: str, n: int = 8) -> dict:
     """Serie degli ultimi n settimane (Lun–Dom) coi KPI Meta+Woo per cliente.
     NON include Odoo (i pannelli Pontoni restano coorte/trend)."""
+    from engine import fetch_active_ads
+    # "Ad attive ora" = snapshot uguale per tutte le settimane → calcolato UNA volta.
+    def _act_now(accs):
+        accs = [accs] if isinstance(accs, str) else accs
+        tot = 0
+        for a in accs:
+            try:
+                tot += sum(fetch_active_ads(a, token).values())
+            except Exception:
+                pass
+        return tot
+    active_now = {"balducci": _act_now(ACC_BALDUCCI), "varini": _act_now(ACC_VARINI),
+                  "pontoni": _act_now(ACC_PONTONI), "didomenico": _act_now(ACC_DIDOM)}
+
+    def _launched(accs, si, ui):
+        accs = [accs] if isinstance(accs, str) else accs
+        n2 = 0
+        for a in accs:
+            try:
+                n2 += _ads_launched(a, token, si, ui)
+            except Exception:
+                pass
+        return n2
+
     start, end = last_week(ref)
     weeks, data = [], {}
     for i in range(n):
@@ -245,10 +269,10 @@ def build_weekly_series(ref: date, token: str, n: int = 8) -> dict:
         si, ui = s.isoformat(), e.isoformat()
         b = _balducci(token, si, ui); v = _varini(token, si, ui)
         d = _didomenico(token, si, ui); p = _pontoni_meta(token, si, ui)
-        b["activity"] = _activity(ACC_BALDUCCI, token, si, ui)
-        v["activity"] = _activity(ACC_VARINI, token, si, ui)
-        p["activity"] = _activity(ACC_PONTONI, token, si, ui)
-        d["activity"] = _activity(ACC_DIDOM, token, si, ui)
+        for cl, obj, accs in (("balducci", b, ACC_BALDUCCI), ("varini", v, ACC_VARINI),
+                              ("pontoni", p, ACC_PONTONI), ("didomenico", d, ACC_DIDOM)):
+            obj["activity"] = {"launched": _launched(accs, si, ui), "active": active_now[cl],
+                               "target": LAUNCH_TARGET[cl]}
         data[wl] = {"balducci": b, "varini": v, "pontoni": p, "didomenico": d,
                     "range": f"{s.strftime('%d/%m')}–{e.strftime('%d/%m')}"}
     return {"weeks": list(reversed(weeks)), "data": data}

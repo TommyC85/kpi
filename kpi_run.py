@@ -19,8 +19,8 @@ import os
 import sys
 from datetime import date, datetime, timezone
 
-from kpi_engine import build_kpi
-from kpi_render import render_kpi
+from kpi_engine import build_kpi, build_weekly_series
+from kpi_render import render_kpi_multiweek
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), "kpi")
 OUT = os.path.join(OUT_DIR, "index.html")
@@ -72,7 +72,9 @@ def main():
     else:
         print(f"Odoo OK · quality_mix={p.get('quality_pct')}% · trend {len(p.get('trend') or [])} mesi")
 
-    html = DOC.format(body=render_kpi(model))
+    series = build_weekly_series(ref, token, n=8)
+    print(f"Serie settimanale: {series['weeks'][0]} → {series['weeks'][-1]}")
+    html = DOC.format(body=render_kpi_multiweek(model, series))
     os.makedirs(OUT_DIR, exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         f.write(html)
