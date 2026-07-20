@@ -296,18 +296,25 @@ def _cards(m: dict) -> str:
     B, V, P, D = m["balducci"], m["varini"], m["pontoni"], m["didomenico"]
 
     # ---- Balducci ----
-    b_pd = B["persons_day"]
+    b_real_pd = B.get("real_persons_day")
+    b_pd = b_real_pd if b_real_pd is not None else B["persons_day"]
+    b_src = "reale (WooCommerce)" if b_real_pd is not None else "Meta Acquisto_unico"
     b_stat = "good" if b_pd >= 45 else ("warn" if b_pd >= 25 else "bad")
     b_pct = round(100 * b_pd / 50) if b_pd else 0
     cpa_prod = B.get("cpa_display") or B["cpa_product"]  # riferimento fisso €9
     cpa_pill = "good" if (cpa_prod is not None and cpa_prod <= 13) else "warn"
     b_spend_pct = round(100 * B["spend"] / wk(m["targets"]["balducci_spend"])) if B["spend"] else 0
+    if B.get("real_customers") is not None:
+        real_row = krow("Reale (Woo) vs tracciato (Meta)", "Incasso reale " + eur(B.get("real_revenue")) + " · clienti unici veri (per email) vs evento Meta Acquisto_unico.", "Meta (Acq.unico)", num(B["persons"]), "Reale (Woo)", num(B["real_customers"]), pill("good", "dati reali"))
+    else:
+        real_row = krow("Reale (WooCommerce)", "Connessione Woo non disponibile.", "—", "—", "Stato", "n.d.", pill("warn", "assente"))
     balducci = f"""
   <article class="card">
     <div class="card-h"><span class="idx">03</span><span class="name">Balducci</span><span class="sect">Integratori naturali</span><span class="spacer"></span>{pill(b_stat,f"{b_pct}% del volume")}</div>
     <div class="kpis">
-      {krow("Clienti unici / giorno — evento <b>Acquisto_unico</b>","Conversione Meta per-persona (non per-prodotto). "+num(B["persons"])+" persone/sett.","Obiettivo","50/gg","Attuale",f"{b_pd:g}/gg",pill(b_stat,f"{b_pct}%"),star=True,hot=True)}
-      {krow("CPA che monitoro su Meta (per acquisto)","Media account (riferimento €9). Per persona sale a ~"+eur(B["cpa_person"],2)+" (una persona compra più prodotti).","Tetto","≤ €13","Attuale",eur(cpa_prod,0),pill(cpa_pill,"Ottimo" if cpa_pill=="good" else "Al limite"))}
+      {krow("Clienti unici / giorno","North Star: 50 <b>persone</b>/giorno. Attuale = "+b_src+"; "+num(B.get("real_customers") or B["persons"])+" persone/sett.","Obiettivo","50/gg","Attuale",f"{b_pd:g}/gg",pill(b_stat,f"{b_pct}%"),star=True,hot=True)}
+      {krow("CPA che monitoro su Meta (per acquisto)","Media account (riferimento €9). Per persona sale a ~"+eur(B["cpa_person"],2)+".","Tetto","≤ €13","Attuale",eur(cpa_prod,0),pill(cpa_pill,"Ottimo" if cpa_pill=="good" else "Al limite"))}
+      {real_row}
       {krow("Spesa / settimana verso 20k/mese","",  "Target",eur(wk(m["targets"]["balducci_spend"])),"Attuale",eur(B["spend"]),pill("warn",f"{b_spend_pct}%"))}
       {activity_row(B.get("activity"))}
     </div>
@@ -389,7 +396,7 @@ def _cards(m: dict) -> str:
     strip = (
         tile("Pontoni","Centri acustici",eur(cpl,2),"costo/lead · <b>target €16</b> · qualità mix da alzare","good" if cpl_pill=="good" else "warn")
         + tile("Varini","Corsi chitarra",eur(V.get("profit")),f"profitto/sett · <b>{v_pct}% del target</b>",v_stat)
-        + tile("Balducci","Integratori",f"{b_pd:g}/gg","persone · <b>target 50/gg</b> · CPA "+eur(cpa_prod,0),b_stat)
+        + tile("Balducci","Integratori",f"{b_pd:g}/gg","persone reali/gg · <b>target 50</b> · CPA "+eur(cpa_prod,0),b_stat)
         + tile("Di Domenico","Editoria B2B",f"{D['purchases']}/sett",f"acquisti · <b>{d_pct}% del target</b>",d_stat)
     )
 

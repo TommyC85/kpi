@@ -131,7 +131,7 @@ def _balducci(token, since, until):
     persons = _act(acts, [f"offsite_conversion.custom.{BALDUCCI_ACQUISTO_UNICO_ID}"])
     if not persons:  # conversione appena creata → fallback al rollup evento custom
         persons = _act(acts, ["offsite_conversion.fb_pixel_custom"])
-    return {
+    out = {
         "spend": round(spend, 2),
         "purchases": purchases,
         "persons": persons,
@@ -139,7 +139,21 @@ def _balducci(token, since, until):
         "cpa_product": round(spend / purchases, 2) if purchases else None,
         "cpa_display": BALDUCCI_CPA_DISPLAY,  # valore di riferimento fisso €9
         "cpa_person": round(spend / persons, 2) if persons else None,
+        # reali da WooCommerce (impostati sotto se disponibili)
+        "real_customers": None, "real_orders": None, "real_revenue": None,
+        "real_persons_day": None, "meta_customers": None,
     }
+    try:
+        import woo
+        w = woo.fetch_week(since, until, prefix="BALDUCCI_")
+        out.update({
+            "real_customers": w["real_customers"], "real_orders": w["real_orders"],
+            "real_revenue": w["real_revenue"], "meta_customers": w["meta_customers"],
+            "real_persons_day": round(w["real_customers"] / 7, 1) if w["real_customers"] else 0,
+        })
+    except Exception as e:
+        out["woo_error"] = str(e)[:120]
+    return out
 
 
 def _varini(token, since, until):
