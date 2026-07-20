@@ -95,7 +95,7 @@ def build(data: dict) -> str:
 <div class="tablewrap"><table>
   <thead>
     <tr class="grp"><th class="l"></th><th></th><th colspan="2" id="wkhead">Settimana</th><th colspan="3" class="sep">Cumulativo (dalla creazione)</th><th class="sep">Costo/app</th></tr>
-    <tr><th class="l">Modulo</th><th class="l">Fonte</th><th>Lead</th><th>Presentati</th><th class="sep">Lead</th><th>Presentati</th><th>%</th><th class="sep">€/app (fonte)</th></tr>
+    <tr><th class="l">Modulo</th><th class="l">Fonte</th><th>Lead</th><th>Presentati</th><th class="sep">Lead</th><th>Presentati</th><th>%</th><th class="sep">€/app (modulo)</th></tr>
   </thead>
   <tbody id="rows"></tbody>
 </table></div>
@@ -103,7 +103,7 @@ def build(data: dict) -> str:
 <div class="note"><b>Definizione:</b> "appuntamento presentato" = campo Odoo <b>Stato appuntamento</b> = <b>Presentato</b> (il cliente si è presentato all'appuntamento — ciò che conta per Pontoni). ·
 <b>Maturità:</b> le settimane recenti hanno pochi appuntamenti perché i lead sono appena entrati e non ancora lavorati → guarda settimane di 3+ settimane fa per numeri stabili; il <b>cumulativo</b> è sempre affidabile.</div>
 
-<div class="foot"><b>Fonti:</b> Odoo (appuntamenti, sola lettura) + Meta (spesa, per fonte). Costo/appuntamento per fonte = spesa Meta della fonte ÷ appuntamenti fissati della fonte. Generato {data['generated']}.</div>
+<div class="foot"><b>Fonti:</b> Odoo (presentati, sola lettura) + Meta (spesa). <b>€/app (modulo)</b> = spesa Meta di quel modulo ÷ presentati del modulo (costo reale per modulo, cumulativo). Le due card in alto sono il costo medio per fonte. "n.d." = spesa Meta non attribuibile al modulo per nome. Generato {data['generated']}.</div>
 
 <script>
 const DATA = {json.dumps(data, ensure_ascii=False)};
@@ -118,7 +118,6 @@ function render(){{
   const wl = cs.weekly[wk] || {{}};
   document.getElementById('cpaLandWk').textContent = 'settimana: ' + eur((wl['Landing']||{{}}).cpa) + ' · ' + ((wl['Landing']||{{}}).appt||0) + ' app';
   document.getElementById('cpaLeadWk').textContent = 'settimana: ' + eur((wl['Lead ADS']||{{}}).cpa) + ' · ' + ((wl['Lead ADS']||{{}}).appt||0) + ' app';
-  const cpaBySource = {{'Landing':cs.cum['Landing'].cpa,'Lead ADS':cs.cum['Lead ADS'].cpa}};
   let tL=0,tA=0,tCL=0,tCA=0, rows='';
   for(const m of DATA.modules){{
     const w = m.weekly[wk] || {{lead:0,appt:0}};
@@ -127,7 +126,7 @@ function render(){{
     rows += `<tr><td class="l">${{m.name.split('|')[0].trim()}}</td><td class="l">${{tag}}</td>`+
       `<td>${{w.lead}}</td><td>${{w.appt}}</td>`+
       `<td class="sep">${{cl}}</td><td>${{ca}}</td><td class="pct">${{pct}}%</td>`+
-      `<td class="sep">${{eur(cpaBySource[m.source])}}</td></tr>`;
+      `<td class="sep">${{eur(m.cum.cpa)}}</td></tr>`;
     tL+=w.lead;tA+=w.appt;tCL+=cl;tCA+=ca;
   }}
   rows += `<tr class="tot"><td class="l">Totale attivi</td><td></td><td>${{tL}}</td><td>${{tA}}</td>`+

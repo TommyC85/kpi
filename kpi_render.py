@@ -304,8 +304,9 @@ def _cards(m: dict) -> str:
     cpa_prod = B.get("cpa_display") or B["cpa_product"]  # riferimento fisso €9
     cpa_pill = "good" if (cpa_prod is not None and cpa_prod <= 13) else "warn"
     b_spend_pct = round(100 * B["spend"] / wk(m["targets"]["balducci_spend"])) if B["spend"] else 0
+    cpa_real = round(B["spend"] / B["real_customers"], 2) if B.get("real_customers") else None
     if B.get("real_customers") is not None:
-        real_row = krow("Reale (Woo) vs tracciato (Meta)", "Incasso reale " + eur(B.get("real_revenue")) + " · clienti unici veri (per email) vs evento Meta Acquisto_unico.", "Meta (Acq.unico)", num(B["persons"]), "Reale (Woo)", num(B["real_customers"]), pill("good", "dati reali"))
+        real_row = krow("Reale (Woo) vs tracciato (Meta)", "Incasso reale " + eur(B.get("real_revenue")) + " · <b>CPA reale (spesa ÷ clienti Woo) " + eur(cpa_real, 2) + "</b> · clienti unici veri (per email) vs evento Meta Acquisto_unico.", "Meta (Acq.unico)", num(B["persons"]), "Reale (Woo)", num(B["real_customers"]), pill("good", "CPA reale " + eur(cpa_real, 0)))
     else:
         real_row = krow("Reale (WooCommerce)", "Connessione Woo non disponibile.", "—", "—", "Stato", "n.d.", pill("warn", "assente"))
     balducci = f"""

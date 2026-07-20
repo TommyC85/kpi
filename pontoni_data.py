@@ -29,6 +29,26 @@ def _source(name):
     return "Landing" if "landing" in name.lower() else "Lead ADS"
 
 
+# Mappa nome campagna Meta → prodotto (deve combaciare col 1° segmento del modulo Odoo).
+# Solo corrispondenze 1:1 pulite. I generici lead-gen (Prova/Test/Mese/Quiz/Leads)
+# alimentano più moduli → NON mappati (il modulo mostra "n.d." invece di un costo gonfiato).
+PROD_KW = [
+    ("occhialipersentire", "Occhiali"), ("nuance", "Occhiali"),
+    ("apparecchi acustici gratis", "AA Gratis"),
+    ("guida al prezzo", "Guida al prezzo"),
+    ("phonak lyric", "Lyric"), ("lyric", "Lyric"),
+    ("oticon", "Oticon Zeal"), ("padova", "Apertura Padova"),
+    ("non bastano", "Gli AA Non Bastano Libro"), ("multi brand", "Multi Brand"),
+]
+
+
+def _meta_key(campaign_name):
+    """(prodotto, fonte) da un nome campagna Meta; prodotto None se non mappabile."""
+    n = (campaign_name or "").lower()
+    prod = next((p for kw, p in PROD_KW if kw in n), None)
+    return (prod, _source(campaign_name))
+
+
 def _isoweek(d):
     y, w, _ = d.isocalendar()
     return f"{y}-W{w:02d}"
@@ -85,14 +105,34 @@ def build_data(token: str, ref: date = None) -> dict:
             out += r.get("data", []); u = r.get("paging", {}).get("next"); p = None
         return out
 
+    from collections import defaultdict
     cum_spend = {"Landing": 0.0, "Lead ADS": 0.0}
+    cum_spend_key = defaultdict(float)   # (prodotto, fonte) → spesa (per modulo)
     for r in meta("2024-01-01", ref.isoformat()):
-        cum_spend[_source(r["campaign_name"])] += float(r.get("spend", 0) or 0)
+        sp = float(r.get("spend", 0) or 0)
+        cum_spend[_source(r["campaign_name"])] += sp
+        cum_spend_key[_meta_key(r["campaign_name"])] += sp
     wk_spend = {w: {"Landing": 0.0, "Lead ADS": 0.0} for w in weeks}
+    wk_spend_key = {w: defaultdict(float) for w in weeks}
     for r in meta(since, ref.isoformat(), inc=1):
         iso = _isoweek(datetime.fromisoformat(r["date_start"]).date())
         if iso in wk_spend:
-            wk_spend[iso][_source(r["campaign_name"])] += float(r.get("spend", 0) or 0)
+            sp = float(r.get("spend", 0) or 0)
+            wk_spend[iso][_source(r["campaign_name"])] += sp
+            wk_spend_key[iso][_meta_key(r["campaign_name"])] += sp
+
+    # spesa Meta REALE per singolo modulo (prodotto×fonte) → costo/appuntamento per modulo
+    for mdl in modules:
+        prod = mdl["name"].split("|")[0].strip()
+        key = (prod, mdl["source"])
+        csp = cum_spend_key.get(key, 0.0)
+        mdl["cum"]["spend"] = round(csp)
+        mdl["cum"]["cpa"] = round(csp / mdl["cum"]["appt"]) if mdl["cum"]["appt"] else None
+        for w in weeks:
+            wsp = wk_spend_key.get(w, {}).get(key, 0.0)
+            wa = mdl["weekly"][w]["appt"]
+            mdl["weekly"][w]["spend"] = round(wsp)
+            mdl["weekly"][w]["cpa"] = round(wsp / wa) if wa else None
 
     def appt_src(weekly=None):
         o = {"Landing": 0, "Lead ADS": 0}
