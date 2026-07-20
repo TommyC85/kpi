@@ -2,7 +2,11 @@ name: KPI Dashboard
 
 on:
   schedule:
-    - cron: "46 4 * * *"   # OGNI GIORNO 06:46 IT — rinfresca lo spaccato moduli Pontoni (cumulativo)
+    # GitHub ritarda i cron di ~6h → nominale notturno per atterrare PRIMA delle 05:45 UTC (07:45 Roma).
+    # Più tentativi (workflow idempotente): basta che uno completi in tempo.
+    - cron: "0 21 * * *"   # ~03:00 UTC atteso
+    - cron: "0 22 * * *"   # ~04:00 UTC atteso
+    - cron: "30 23 * * *"  # ~05:30 UTC atteso (rete di sicurezza)
   workflow_dispatch: {}
 
 concurrency:
