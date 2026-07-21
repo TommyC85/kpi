@@ -14,17 +14,15 @@ def _clean(n):
     return re.sub(r"\s+", " ", re.sub(r"\[.*?\]|\(.*?\)", "", n or "")).strip()
 
 
-# Prodotti NON-corso da escludere (ponte migrazione / prova gratuita): non sono acquisizioni né corsi.
-EXCLUDE = ("community", "try before", "try before you buy")
+import courses
 
 
-def _is_excl(name):
-    n = (name or "").lower()
-    return any(x in n for x in EXCLUDE)
+def _real(cs):
+    return [c for c in cs if not courses.is_excluded(c)]
 
 
-def _real(courses):
-    return [c for c in courses if not _is_excl(c)]
+def canon(name):
+    return courses.canon(name)
 
 
 CSS = """
@@ -85,14 +83,14 @@ def build():
     tot = len(cust)
     gaps = []; fc_all = Counter(); fc_re = Counter(); nxt = defaultdict(Counter); multi = 0
     for em, orders in cust.items():
-        entry = _clean(orders[0][1][0]) if orders[0][1] else "?"
+        entry = canon(orders[0][1][0]) if orders[0][1] else "?"
         fc_all[entry] += 1
         if len(orders) >= 2:
             multi += 1
             gaps.append((orders[1][0] - orders[0][0]).days)
             fc_re[entry] += 1
             for c in orders[1][1]:
-                nxt[entry][_clean(c)] += 1
+                nxt[entry][canon(c)] += 1
 
     def num(n):
         return f"{n:,}".replace(",", ".")
