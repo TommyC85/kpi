@@ -47,7 +47,9 @@ ACR = {
 
 # Non-corso: prodotti-ponte / prova / bonus da escludere dalle analisi corso.
 EXCLUDE_CANON = {"Bonus (Sound/Tuning)"}
-EXCLUDE_KW = ("community", "try before", "try before you buy")
+EXCLUDE_KW = ("community", "try before", "try before you buy",
+              # bonus/omaggio dati a tappeto (non vendite) — confermati da Varini
+              "guitar mindset", "theory made easy", "healthy performer", "sounds of guitar")
 
 
 def _norm(name):
