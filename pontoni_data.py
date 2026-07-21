@@ -2,9 +2,9 @@
 """
 Dati 'Spaccato moduli Pontoni' (Odoo + Meta).
 
-Per ogni modulo (campagna [TMC]) ATTIVO: lead entrati + appuntamenti PRESENTATI
+Per ogni modulo (campagna [TMC]) ATTIVO: lead entrati + appuntamenti FISSATI
 (dominio ufficiale Pontoni, vedi odoo.py) per settimana e cumulativo dalla creazione.
-+ costo per appuntamento presentato per FONTE (Landing / Lead ADS).
++ costo per appuntamento fissato per FONTE (Landing / Lead ADS).
 
 Odoo: SOLA LETTURA. Env: ODOO_*, META_TOKEN (o passato).
 """
@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta
 import certifi
 import requests
 
-import odoo  # riuso connessione + dominio ufficiale (PRES_DOMAIN / LEAD_ACTIVE)
+import odoo  # riuso connessione + dominio ufficiale (APPT_DOMAIN / LEAD_ACTIVE)
 
 ACC_PONTONI = "act_1143079700337559"
 N_WEEKS = 12
@@ -72,14 +72,14 @@ def build_data(token: str, ref: date = None) -> dict:
     since = (monday - timedelta(days=7 * (N_WEEKS - 1))).isoformat()
     camp = [("campaign_id.name", "ilike", odoo.CAMPAIGN_FILTER)]
 
-    # Odoo: cumulativo, attivi, settimanale (lead entrati + presentati)
+    # Odoo: cumulativo, attivi, settimanale (lead entrati + fissati)
     cum_lead = odoo._by_campaign(camp + odoo.LEAD_ACTIVE)
-    cum_pres = odoo._by_campaign(odoo.PRES_DOMAIN + camp)
+    cum_pres = odoo._by_campaign(odoo.APPT_DOMAIN + camp)
     d14 = (ref - timedelta(days=14)).isoformat()
     active = set(odoo._by_campaign(camp + odoo.LEAD_ACTIVE + [("create_date", ">=", d14)]).keys())
     win = [("create_date", ">=", since)]
     wl = _parse_weeks(odoo._rg(camp + odoo.LEAD_ACTIVE + win, ["campaign_id", "create_date:week"]))
-    wp = _parse_weeks(odoo._rg(odoo.PRES_DOMAIN + camp + win, ["campaign_id", "create_date:week"]))
+    wp = _parse_weeks(odoo._rg(odoo.APPT_DOMAIN + camp + win, ["campaign_id", "create_date:week"]))
 
     modules = []
     for c, nlead in cum_lead.items():

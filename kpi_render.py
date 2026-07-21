@@ -354,7 +354,7 @@ def _cards(m: dict) -> str:
       {activity_row(P.get("activity"))}
     </div>
     <div class="dual">{mon}{panel_right}</div>
-    <a class="drill" href="pontoni/">📊 Apri lo spaccato moduli — appuntamenti presentati per settimana + cumulativo →</a>
+    <a class="drill" href="pontoni/">📊 Apri lo spaccato moduli — appuntamenti fissati per settimana + cumulativo →</a>
   </article>"""
 
     # ---- Di Domenico ----
@@ -388,7 +388,7 @@ def _cards(m: dict) -> str:
     legend = """
   <section class="legend">
     <div class="lg"><div class="kick">Livello 1 — controllo</div><h3>KPI di controllo</h3><p>CPA/CPL, % budget sui vincenti, disciplina di tracking, velocità di test, <b>traiettoria</b> verso il target: guidati dal media buyer.</p></div>
-    <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti presentati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
+    <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti fissati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
   </section>"""
 
     foot = (f'<div class="foot"><b>Fonti:</b> Meta Ads · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
@@ -403,7 +403,7 @@ def _legend_foot(m):
     legend = """
   <section class="legend">
     <div class="lg"><div class="kick">Livello 1 — controllo</div><h3>KPI di controllo</h3><p>CPA/CPL, % budget sui vincenti, disciplina di tracking, velocità di test, <b>traiettoria</b> verso il target: guidati dal media buyer.</p></div>
-    <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti presentati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
+    <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti fissati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
   </section>"""
     foot = ('<div class="foot"><b>Fonti:</b> Meta Ads · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
             'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su libro €37. '

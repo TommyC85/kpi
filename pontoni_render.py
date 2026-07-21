@@ -62,7 +62,7 @@ def build(data: dict) -> str:
   <div>
     <div class="eyebrow">Pontoni · Centri acustici</div>
     <h1>Spaccato moduli — appuntamenti</h1>
-    <p class="sub">Lead entrati e <b>appuntamenti presentati</b> per modulo. Solo moduli attivi. Numeri assoluti.</p>
+    <p class="sub">Lead entrati e <b>appuntamenti fissati</b> per modulo. Solo moduli attivi. Numeri assoluti.</p>
   </div>
   <div class="wk"><label for="wksel">Settimana</label>
     <select id="wksel">{"".join(f'<option value="{i}"{" selected" if i==default else ""}>{w}</option>' for i,w in enumerate(weeks))}</select>
@@ -80,15 +80,15 @@ def build(data: dict) -> str:
 <div class="tablewrap"><table>
   <thead>
     <tr class="grp"><th class="l"></th><th></th><th colspan="2" id="wkhead">Settimana</th><th colspan="3" class="sep">Cumulativo (dalla creazione)</th><th class="sep">Costo/app</th></tr>
-    <tr><th class="l">Modulo</th><th class="l">Fonte</th><th>Lead</th><th>Presentati</th><th class="sep">Lead</th><th>Presentati</th><th>%</th><th class="sep">€/app (modulo)</th></tr>
+    <tr><th class="l">Modulo</th><th class="l">Fonte</th><th>Lead</th><th>Fissati</th><th class="sep">Lead</th><th>Fissati</th><th>%</th><th class="sep">€/app (modulo)</th></tr>
   </thead>
   <tbody id="rows"></tbody>
 </table></div>
 
-<div class="note"><b>Definizione:</b> "appuntamento presentato" = campo Odoo <b>Stato appuntamento</b> = <b>Presentato</b> (il cliente si è presentato all'appuntamento — ciò che conta per Pontoni). ·
+<div class="note"><b>Definizione:</b> "appuntamento fissato" = un appuntamento <b>prenotato</b> (qualsiasi esito: presentato, no-show, annullato). Fonte: esito appuntamento Odoo. ·
 <b>Maturità:</b> le settimane recenti hanno pochi appuntamenti perché i lead sono appena entrati e non ancora lavorati → guarda settimane di 3+ settimane fa per numeri stabili; il <b>cumulativo</b> è sempre affidabile.</div>
 
-<div class="foot"><b>Fonti:</b> Odoo (presentati, sola lettura) + Meta (spesa). <b>€/app (modulo)</b> = spesa Meta di quel modulo ÷ presentati del modulo (costo reale per modulo, cumulativo). Le due card in alto sono il costo medio per fonte. "n.d." = spesa Meta non attribuibile al modulo per nome. Generato {data['generated']}.</div>
+<div class="foot"><b>Fonti:</b> Odoo (appuntamenti fissati, sola lettura) + Meta (spesa). <b>€/app (modulo)</b> = spesa Meta di quel modulo ÷ appuntamenti fissati del modulo (costo reale per modulo, cumulativo). Le due card in alto sono il costo medio per fonte. "n.d." = spesa Meta non attribuibile al modulo per nome. Generato {data['generated']}.</div>
 
 <script>
 const DATA = {json.dumps(data, ensure_ascii=False)};

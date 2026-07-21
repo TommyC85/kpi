@@ -4,10 +4,11 @@ Connettore Odoo (Pontoni) — SOLA LETTURA.
 
 Usa solo metodi di lettura (`search_count`, `read_group`) — nessun create/write/unlink.
 
-"Appuntamento presentato (vendibile)" = dominio ufficiale del tecnico Pontoni:
+"Appuntamento FISSATO (prenotato)" = dominio del tecnico Pontoni adattato:
   type=opportunity, lost_reason_id NOT IN [12],
-  calendar_event_ids.esito_appuntamento_ids.presentato = 'presentato',
-  active IN [True, False]   (include gli archiviati: vinti/persi)
+  calendar_event_ids.esito_appuntamento_ids.presentato != False  (QUALSIASI esito:
+    presentato / non_presentato / annullato / spostato = un appuntamento è stato fissato),
+  active IN [True, False]   (include gli archiviati)
 "Lead entrati" = tutti i crm.lead della campagna con active IN [True, False].
 
 Variabili d'ambiente: ODOO_URL, ODOO_DB, ODOO_USER, ODOO_API_KEY.
@@ -22,11 +23,11 @@ import certifi
 
 CAMPAIGN_FILTER = "[TMC]"
 
-# Dominio ufficiale Pontoni per "presentato ipoacusico" (il vendibile).
-PRES_DOMAIN = [
+# Dominio Pontoni per "appuntamento FISSATO" (prenotato, qualsiasi esito).
+APPT_DOMAIN = [
     ("type", "=", "opportunity"),
     ("lost_reason_id", "not in", [12]),
-    ("calendar_event_ids.esito_appuntamento_ids.presentato", "=", "presentato"),
+    ("calendar_event_ids.esito_appuntamento_ids.presentato", "!=", False),
     ("active", "in", [True, False]),
 ]
 # Denominatore "lead entrati": tutti i record (anche archiviati).
@@ -84,7 +85,7 @@ def funnel_by_campaign(since: str, until: str) -> list:
     win = [("create_date", ">=", since), ("create_date", "<", until)]
     camp = [("campaign_id.name", "ilike", CAMPAIGN_FILTER)]
     leads = _by_campaign(camp + LEAD_ACTIVE + win)
-    pres = _by_campaign(PRES_DOMAIN + camp + win)
+    pres = _by_campaign(APPT_DOMAIN + camp + win)
     out = [{"campaign": c, "type": _campaign_type(c), "lead": n, "appt": pres.get(c, 0),
             "rate": round(100 * pres.get(c, 0) / n, 1) if n else 0.0}
            for c, n in leads.items()]
@@ -117,7 +118,7 @@ def appointments_by_month(months: list) -> dict:
     for label, s, u in months:
         win = [("create_date", ">=", s), ("create_date", "<=", u + " 23:59:59")]
         out[label] = {"lead": _count(camp + LEAD_ACTIVE + win),
-                      "appt": _count(PRES_DOMAIN + camp + win)}
+                      "appt": _count(APPT_DOMAIN + camp + win)}
     return out
 
 
