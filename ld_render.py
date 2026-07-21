@@ -78,16 +78,21 @@ def build():
     ncourses = Counter(len(ls) for ls in user_lines.values())
     one = [u for u, ls in user_lines.items() if len(ls) == 1]
     single_by_course = Counter(next(iter(user_lines[u])) for u in one)
+    owners_by_course = Counter()          # proprietari TOTALI per linea (da soli o con altri)
+    for ls in user_lines.values():
+        for ln in ls:
+            owners_by_course[ln] += 1
 
     def num(n):
         return f"{n:,}".replace(",", ".")
 
-    # tabella single-linea per corso
+    # tabella per linea: proprietari totali + quanti hanno SOLO quello + % (ordinata per totali)
     rows = ""
-    for line, n in single_by_course.most_common():
-        pct = 100 * n / len(one) if one else 0
-        rows += (f'<tr><td class="l">{line}</td>'
-                 f'<td>{num(n)}</td><td>{pct:.1f}%</td></tr>')
+    for line, tot_own in owners_by_course.most_common():
+        sng = single_by_course.get(line, 0)
+        pct = 100 * sng / tot_own if tot_own else 0
+        rows += (f'<tr><td class="l">{line}</td><td>{num(tot_own)}</td>'
+                 f'<td>{num(sng)}</td><td>{pct:.0f}%</td></tr>')
 
     # distribuzione nr linee/persona (1,2,3,4+)
     b1, b2, b3 = ncourses.get(1, 0), ncourses.get(2, 0), ncourses.get(3, 0)
@@ -113,10 +118,10 @@ def build():
   <div class="tile"><div class="lab">Con 1 SOLO corso</div><div class="big">{num(len(one))}</div><div class="cap">{100*len(one)/total:.0f}% · target cross-sell</div></div>
   <div class="tile"><div class="lab">Con 2+ corsi</div><div class="big">{num(total-len(one))}</div><div class="cap">{100*(total-len(one))/total:.0f}% · base fedele</div></div>
 </div>
-<div class="sec">Chi ha un solo corso — per quale corso</div>
-<p class="secsub">Ordinato per numero di persone. Sono i target ideali per vendere il corso successivo (costo ADV ~zero).</p>
+<div class="sec">Corsi: proprietari totali e chi ne ha uno solo</div>
+<p class="secsub">Per ogni linea: quanti la possiedono in totale e quanti hanno <b>solo quella</b> (target cross-sell, costo ADV ~zero). % = quota di single sul totale. Ordinato per proprietari totali.</p>
 <div class="tablewrap"><table>
-<thead><tr><th class="l">Corso (unico posseduto)</th><th>Persone</th><th>% dei single</th></tr></thead>
+<thead><tr><th class="l">Corso (linea)</th><th>Proprietari totali</th><th>Con solo questo</th><th>% solo</th></tr></thead>
 <tbody>{rows}</tbody></table></div>
 <div class="sec">Distribuzione: quanti corsi per persona</div>
 <div style="max-width:520px">{bars}</div>
