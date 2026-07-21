@@ -14,6 +14,19 @@ def _clean(n):
     return re.sub(r"\s+", " ", re.sub(r"\[.*?\]|\(.*?\)", "", n or "")).strip()
 
 
+# Prodotti NON-corso da escludere (ponte migrazione / prova gratuita): non sono acquisizioni né corsi.
+EXCLUDE = ("community", "try before", "try before you buy")
+
+
+def _is_excl(name):
+    n = (name or "").lower()
+    return any(x in n for x in EXCLUDE)
+
+
+def _real(courses):
+    return [c for c in courses if not _is_excl(c)]
+
+
 CSS = """
 :root{--bg:#f4f5f7;--panel:#fff;--panel-2:#fbfcfd;--ink:#141a22;--ink-2:#4a5563;--ink-3:#7b8698;--line:#e3e7ec;--line-2:#eef1f4;--accent:#2b57d6;--accent-soft:#e7edfd;--mono:ui-monospace,"SF Mono",Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--shadow:0 1px 2px rgba(20,26,34,.05),0 6px 20px rgba(20,26,34,.05)}
 @media(prefers-color-scheme:dark){:root{--bg:#0d1017;--panel:#151a22;--panel-2:#11161d;--ink:#e9edf3;--ink-2:#a7b1c0;--ink-3:#6d7788;--line:#242c37;--line-2:#1b222b;--accent:#6f92f5;--accent-soft:#1b2740;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35)}}
@@ -58,8 +71,11 @@ def build():
     for em, orders in raw.items():
         parsed = []
         for dt, courses in orders:
+            real = _real(courses)          # tiene solo i CORSI VERI (no Community/prova)
+            if not real:
+                continue                   # ordine di solo prodotti-ponte → ignorato
             try:
-                parsed.append((datetime.fromisoformat(dt), courses))
+                parsed.append((datetime.fromisoformat(dt), real))
             except Exception:
                 pass
         if parsed:
@@ -123,7 +139,7 @@ def build():
 <div class="tablewrap"><table>
 <thead><tr><th class="l">Corso di partenza</th><th>Clienti</th><th>% riacquista</th><th class="nx">Poi compra</th></tr></thead>
 <tbody>{rows}</tbody></table></div>
-<div class="foot"><b>Fonte:</b> WooCommerce (ordini completed+processing, sola lettura). "Corso di partenza" = corso del primo ordine. Aggiornato settimanalmente.</div>
+<div class="foot"><b>Fonte:</b> WooCommerce (ordini completed+processing, sola lettura). Solo <b>corsi veri</b>: esclusi "Iscrizione Nuova Community" (prodotto-ponte migrazione da massimovarini.it, base già esistente) e "Try Before Buy" (prova gratuita). "Corso di partenza" = primo corso vero acquistato. Aggiornato settimanalmente.</div>
 </div></div>"""
     return ("<!doctype html>\n<html lang=it>\n<head>\n<meta charset=utf-8>\n"
             "<meta name=viewport content=\"width=device-width, initial-scale=1\">\n"
