@@ -13,3 +13,10 @@ __pycache__/
 pontoni/index.html
 pontoni/.htaccess
 pontoni_moduli_data.json
+ld/index.html
+ld/.htaccess
+ld_user_courses.json
+ld_courses.json
+ld_done_courses.json
+ld_build_status.txt
+ld_build.out

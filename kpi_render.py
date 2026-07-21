@@ -154,6 +154,7 @@ def nav(active):
     return ('<nav class="topnav"><span class="brand">📊 Media Buying</span><div class="links">'
             + a("/tommaso/", "Riepilogo", "riepilogo")
             + a("/tommaso/varini/", "Varini", "varini")
+            + a("/tommaso/kpi/learndash/", "Varini · Corsi", "learndash")
             + a("/tommaso/kpi/", "KPI clienti", "kpi")
             + a("/tommaso/kpi/pontoni/", "Pontoni · moduli", "pontoni")
             + "</div></nav>")
