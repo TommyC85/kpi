@@ -55,24 +55,41 @@ tbody tr:hover{background:var(--panel-2)}
 
 
 def build():
+    import courses as C
     uc = {int(u): set(cs) for u, cs in json.load(open(os.path.join(HERE, "ld_user_courses.json"))).items()}
-    courses = {int(k): v for k, v in json.load(open(os.path.join(HERE, "ld_courses.json"))).items()}
-    total = len(uc)
-    ncourses = Counter(len(v) for v in uc.values())
-    one = [u for u, v in uc.items() if len(v) == 1]
-    single_by_course = Counter(next(iter(uc[u])) for u in one)
+    ctitles = {int(k): v for k, v in json.load(open(os.path.join(HERE, "ld_courses.json"))).items()}
+
+    # ogni utente → set di LINEE canoniche (Vol.1/2/3 e sigle → una sola linea; esclusi ponte/prova/bonus)
+    def lines_of(cids):
+        ls = set()
+        for cid in cids:
+            t = ctitles.get(cid, str(cid))
+            if C.is_excluded(t):
+                continue
+            ln = C.canon(t)
+            if ln in C.EXCLUDE_CANON:
+                continue
+            ls.add(ln)
+        return ls
+
+    user_lines = {u: lines_of(v) for u, v in uc.items()}
+    user_lines = {u: ls for u, ls in user_lines.items() if ls}  # almeno 1 linea vera
+    total = len(user_lines)
+    ncourses = Counter(len(ls) for ls in user_lines.values())
+    one = [u for u, ls in user_lines.items() if len(ls) == 1]
+    single_by_course = Counter(next(iter(user_lines[u])) for u in one)
 
     def num(n):
         return f"{n:,}".replace(",", ".")
 
-    # tabella single-course per corso
+    # tabella single-linea per corso
     rows = ""
-    for cid, n in single_by_course.most_common():
+    for line, n in single_by_course.most_common():
         pct = 100 * n / len(one) if one else 0
-        rows += (f'<tr><td class="l">{_clean(courses.get(cid, str(cid)))}</td>'
+        rows += (f'<tr><td class="l">{line}</td>'
                  f'<td>{num(n)}</td><td>{pct:.1f}%</td></tr>')
 
-    # distribuzione nr corsi/persona (1,2,3,4+)
+    # distribuzione nr linee/persona (1,2,3,4+)
     b1, b2, b3 = ncourses.get(1, 0), ncourses.get(2, 0), ncourses.get(3, 0)
     b4 = sum(v for k, v in ncourses.items() if k >= 4)
     dist = [("1 corso", b1), ("2 corsi", b2), ("3 corsi", b3), ("4+ corsi", b4)]
@@ -103,7 +120,7 @@ def build():
 <tbody>{rows}</tbody></table></div>
 <div class="sec">Distribuzione: quanti corsi per persona</div>
 <div style="max-width:520px">{bars}</div>
-<div class="foot"><b>Fonte:</b> LearnDash (sola lettura). {num(total)} persone con almeno un corso, {num(len(one))} con uno solo. "Try Before Buy" = prova gratuita (prospect da convertire al primo corso pagato). Aggiornato settimanalmente.</div>
+<div class="foot"><b>Fonte:</b> LearnDash (sola lettura). Conteggio per <b>linea di corso</b>: Vol.1/2/3 e sigle (EGS, CHAC, TRIM, PEPO…) contano come UNA linea; il bundle = una linea. Esclusi prodotti non-corso (Iscrizione Community = ponte migrazione, Try Before Buy = prova, bonus Sound/Tuning/Setup). {num(total)} persone con ≥1 linea, {num(len(one))} con una sola. Aggiornato settimanalmente.</div>
 </div></div>"""
     return ("<!doctype html>\n<html lang=it>\n<head>\n<meta charset=utf-8>\n"
             "<meta name=viewport content=\"width=device-width, initial-scale=1\">\n"
