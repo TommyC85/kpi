@@ -11,6 +11,8 @@ Uso:
 import re
 from datetime import date
 
+import navbar
+
 CSS = """
   :root{
     --bg:#f4f5f7; --panel:#ffffff; --panel-2:#fbfcfd;
@@ -136,28 +138,9 @@ CSS = """
   .foot b{color:var(--ink-2)}
   .drill{display:block;margin:6px 22px 18px;padding:14px 16px;border-radius:12px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13.5px;text-decoration:none;text-align:center;border:1px solid var(--accent)}
   .drill:hover{filter:brightness(1.04)}
-  .topnav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin-bottom:22px;box-shadow:var(--shadow)}
-  .topnav .brand{font-weight:750;font-size:13.5px}
-  .topnav .links{display:flex;gap:4px;flex-wrap:wrap}
-  .topnav a{font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;padding:6px 12px;border-radius:8px}
-  .topnav a:hover{background:var(--panel-2);color:var(--ink)}
-  .topnav a.active{background:var(--accent-soft);color:var(--accent)}
   .wksel-wrap{display:inline-flex;align-items:center;gap:5px}
   #wksel{font-family:var(--mono);font-size:13px;font-weight:600;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
-"""
-
-
-def nav(active):
-    def a(href, label, key):
-        cls = ' class="active"' if key == active else ""
-        return f'<a href="{href}"{cls}>{label}</a>'
-    return ('<nav class="topnav"><span class="brand">📊 Media Buying</span><div class="links">'
-            + a("/tommaso/", "Riepilogo", "riepilogo")
-            + a("/tommaso/varini/", "Varini", "varini")
-            + a("/tommaso/kpi/learndash/", "Varini · Corsi", "learndash")
-            + a("/tommaso/kpi/", "KPI clienti", "kpi")
-            + a("/tommaso/kpi/pontoni/", "Pontoni · moduli", "pontoni")
-            + "</div></nav>")
+""" + navbar.NAV_CSS
 
 
 # ── helper di formattazione/stato ────────────────────────────────────────────
@@ -432,7 +415,7 @@ def _legend_foot(m):
 def render_kpi(m: dict) -> str:
     """Scorecard singola settimana (compatibilità)."""
     head = f"""<div class="wrap"><div class="inner">
-  {nav("kpi")}
+  {navbar.nav_html("/tommaso/kpi/")}
   <header class="masthead">
     <div class="eyebrow">Media Buying · Scorecard settimanale</div>
     <h1>KPI di riferimento — 4 clienti</h1>
@@ -471,7 +454,7 @@ def render_kpi_multiweek(latest: dict, series: dict) -> str:
         views += f'<section class="weekview" data-w="{i}"{style}>{cards}</section>'
     gen = latest.get("generated_at") or ""
     head = f"""<div class="wrap"><div class="inner">
-  {nav("kpi")}
+  {navbar.nav_html("/tommaso/kpi/")}
   <header class="masthead">
     <div class="eyebrow">Media Buying · Scorecard settimanale</div>
     <h1>KPI di riferimento — 4 clienti</h1>

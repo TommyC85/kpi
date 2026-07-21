@@ -49,31 +49,15 @@ tbody tr.tot td{border-top:2px solid var(--line);border-bottom:none;font-weight:
 .tag.land{color:var(--good);background:var(--good-bg)}.tag.lead{color:var(--warn);background:var(--warn-bg)}
 .foot{margin-top:22px;font-size:12px;color:var(--ink-3);line-height:1.6}.foot b{color:var(--ink-2)}
 .note{margin-top:14px;padding:12px 16px;border:1px dashed var(--line);border-radius:12px;background:var(--panel-2);font-size:12.5px;color:var(--ink-2);line-height:1.5}
-.topnav{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 14px;margin-bottom:22px;box-shadow:var(--shadow)}
-.topnav .brand{font-weight:750;font-size:13.5px}
-.topnav .links{display:flex;gap:4px;flex-wrap:wrap}
-.topnav a{font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;padding:6px 12px;border-radius:8px}
-.topnav a:hover{background:var(--panel-2);color:var(--ink)}
-.topnav a.active{background:var(--accent-soft);color:var(--accent)}
 """
-
-def nav(active):
-    def a(href, label, key):
-        cls = ' class="active"' if key == active else ""
-        return f'<a href="{href}"{cls}>{label}</a>'
-    return ('<nav class="topnav"><span class="brand">📊 Media Buying</span><div class="links">'
-            + a("/tommaso/", "Riepilogo", "riepilogo")
-            + a("/tommaso/varini/", "Varini", "varini")
-            + a("/tommaso/kpi/learndash/", "Varini · Corsi", "learndash")
-            + a("/tommaso/kpi/", "KPI clienti", "kpi")
-            + a("/tommaso/kpi/pontoni/", "Pontoni · moduli", "pontoni")
-            + "</div></nav>")
+import navbar
+CSS = CSS + navbar.NAV_CSS
 
 def build(data: dict) -> str:
     weeks = data["weeks"]
     default = len(weeks) - 2 if len(weeks) >= 2 else len(weeks) - 1
     body = f"""<div class="wrap"><div class="inner">
-{nav("pontoni")}
+{navbar.nav_html("/tommaso/kpi/pontoni/")}
 <div class="head">
   <div>
     <div class="eyebrow">Pontoni · Centri acustici</div>

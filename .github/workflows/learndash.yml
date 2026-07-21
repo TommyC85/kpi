@@ -1,12 +1,12 @@
-name: LearnDash Varini (settimanale)
+name: Varini settimanale (Corsi + Riacquisti)
 
 on:
   schedule:
-    - cron: "0 3 * * 1"   # lunedì notte (build pesante ~10 min, separato dal giro giornaliero)
+    - cron: "0 3 * * 1"   # lunedì notte (build pesante ~15 min, separato dal giro giornaliero)
   workflow_dispatch: {}
 
 concurrency:
-  group: learndash
+  group: varini-weekly
   cancel-in-progress: false
 
 jobs:
@@ -19,14 +19,23 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
 
-      - name: Costruisci mappa corsi + pagina (LearnDash, sola lettura)
+      - name: Corsi — mappa persona→corsi + pagina (LearnDash, sola lettura)
         env:
           LD_VARINI_URL: ${{ secrets.LD_VARINI_URL }}
           LD_VARINI_USER: ${{ secrets.LD_VARINI_USER }}
           LD_VARINI_PASS: ${{ secrets.LD_VARINI_PASS }}
         run: python ld_run.py
 
-      - name: Deploy su SiteGround (FTPS) — /tommaso/kpi/learndash
+      - name: Riacquisti — storico ordini Woo + pagina
+        env:
+          WC_URL: ${{ secrets.WC_URL }}
+          WC_KEY: ${{ secrets.WC_KEY }}
+          WC_SECRET: ${{ secrets.WC_SECRET }}
+        run: |
+          python build_woo_orders.py
+          python riacquisti_render.py
+
+      - name: Deploy su SiteGround (FTPS) — /tommaso/kpi/{learndash,riacquisti}
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
@@ -40,7 +49,9 @@ jobs:
             set ssl:verify-certificate no;
             open -u '$FTP_USER','$FTP_PASS' '$FTP_HOST';
             mkdir -f -p '$FTP_DIR/kpi/learndash';
-            cd '$FTP_DIR/kpi/learndash';
-            put -O . ld/index.html;
-            put -O . ld/.htaccess;
+            put -O '$FTP_DIR/kpi/learndash' ld/index.html;
+            put -O '$FTP_DIR/kpi/learndash' ld/.htaccess;
+            mkdir -f -p '$FTP_DIR/kpi/riacquisti';
+            put -O '$FTP_DIR/kpi/riacquisti' riacquisti/index.html;
+            put -O '$FTP_DIR/kpi/riacquisti' riacquisti/.htaccess;
           "
