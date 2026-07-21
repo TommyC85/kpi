@@ -57,6 +57,10 @@ jobs:
           WC_URL: ${{ secrets.WC_URL }}
           WC_KEY: ${{ secrets.WC_KEY }}
           WC_SECRET: ${{ secrets.WC_SECRET }}
+          # WooCommerce Balducci (dati reali: clienti/incasso).
+          WC_BALDUCCI_URL: ${{ secrets.WC_BALDUCCI_URL }}
+          WC_BALDUCCI_KEY: ${{ secrets.WC_BALDUCCI_KEY }}
+          WC_BALDUCCI_SECRET: ${{ secrets.WC_BALDUCCI_SECRET }}
           # Odoo Pontoni — SOLA LETTURA (funnel + trend costo/appuntamento).
           ODOO_URL: ${{ secrets.ODOO_URL }}
           ODOO_DB: ${{ secrets.ODOO_DB }}
