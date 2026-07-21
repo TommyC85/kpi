@@ -74,7 +74,8 @@ def build_data(token: str, ref: date = None) -> dict:
 
     # Odoo: cumulativo, attivi, settimanale (lead entrati + fissati)
     cum_lead = odoo._by_campaign(camp + odoo.LEAD_ACTIVE)
-    cum_pres = odoo._by_campaign(odoo.APPT_DOMAIN + camp)
+    cum_pres = odoo._by_campaign(odoo.APPT_DOMAIN + camp)          # fissati (cumulativo)
+    cum_presentato = odoo._by_campaign(odoo.PRES_DOMAIN + camp)    # presentati (solo colonna cumulativa)
     d14 = (ref - timedelta(days=14)).isoformat()
     active = set(odoo._by_campaign(camp + odoo.LEAD_ACTIVE + [("create_date", ">=", d14)]).keys())
     win = [("create_date", ">=", since)]
@@ -87,7 +88,8 @@ def build_data(token: str, ref: date = None) -> dict:
             continue
         weekly = {w: {"lead": wl.get(c, {}).get(w, 0), "appt": wp.get(c, {}).get(w, 0)} for w in weeks}
         modules.append({"name": _clean(c), "source": _source(c),
-                        "cum": {"lead": nlead, "appt": cum_pres.get(c, 0)}, "weekly": weekly})
+                        "cum": {"lead": nlead, "appt": cum_pres.get(c, 0),
+                                "pres": cum_presentato.get(c, 0)}, "weekly": weekly})
     modules.sort(key=lambda m: -m["cum"]["lead"])
 
     # Meta: spesa per fonte

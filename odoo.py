@@ -30,6 +30,13 @@ APPT_DOMAIN = [
     ("calendar_event_ids.esito_appuntamento_ids.presentato", "!=", False),
     ("active", "in", [True, False]),
 ]
+# Dominio "PRESENTATO" (il cliente si è presentato) — solo per la colonna cumulativa.
+PRES_DOMAIN = [
+    ("type", "=", "opportunity"),
+    ("lost_reason_id", "not in", [12]),
+    ("calendar_event_ids.esito_appuntamento_ids.presentato", "=", "presentato"),
+    ("active", "in", [True, False]),
+]
 # Denominatore "lead entrati": tutti i record (anche archiviati).
 LEAD_ACTIVE = [("active", "in", [True, False])]
 
