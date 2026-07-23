@@ -129,12 +129,12 @@ def build_data(token: str, ref: date = None) -> dict:
         key = (prod, mdl["source"])
         csp = cum_spend_key.get(key, 0.0)
         mdl["cum"]["spend"] = round(csp)
-        mdl["cum"]["cpa"] = round(csp / mdl["cum"]["appt"]) if mdl["cum"]["appt"] else None
+        mdl["cum"]["cpa"] = round(csp / mdl["cum"]["appt"]) if (mdl["cum"]["appt"] and csp) else None
         for w in weeks:
             wsp = wk_spend_key.get(w, {}).get(key, 0.0)
             wa = mdl["weekly"][w]["appt"]
             mdl["weekly"][w]["spend"] = round(wsp)
-            mdl["weekly"][w]["cpa"] = round(wsp / wa) if wa else None
+            mdl["weekly"][w]["cpa"] = round(wsp / wa) if (wa and wsp) else None
 
     def appt_src(weekly=None):
         o = {"Landing": 0, "Lead ADS": 0}

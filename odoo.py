@@ -23,11 +23,12 @@ import certifi
 
 CAMPAIGN_FILTER = "[TMC]"
 
-# Dominio Pontoni per "appuntamento FISSATO" (prenotato, qualsiasi esito).
+# Dominio Pontoni per "appuntamento FISSATO" (prenotato = ha un appuntamento in calendario,
+# ANCHE futuro/senza esito ancora). L'esito compilato perdeva i futuri (es. campagne recenti).
 APPT_DOMAIN = [
     ("type", "=", "opportunity"),
     ("lost_reason_id", "not in", [12]),
-    ("calendar_event_ids.esito_appuntamento_ids.presentato", "!=", False),
+    ("calendar_event_ids", "!=", False),
     ("active", "in", [True, False]),
 ]
 # Dominio "PRESENTATO" (il cliente si è presentato) — solo per la colonna cumulativa.
