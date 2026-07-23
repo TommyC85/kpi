@@ -52,11 +52,26 @@ LAUNCH_TARGET = {"balducci": 15, "varini": 20, "pontoni": 10, "didomenico": 20}
 BALDUCCI_CPA_DISPLAY = 9.0
 
 
+def _get_json(url, params, tries=4):
+    """GET con retry: Meta a volte risponde vuoto/HTML (transitorio) → .json() esplode.
+    Riprova con backoff invece di far fallire l'intero run."""
+    import time
+    last = None
+    for i in range(tries):
+        try:
+            resp = requests.get(url, params=params, verify=certifi.where(), timeout=90)
+            return resp.json()
+        except Exception as e:
+            last = e
+            time.sleep(2 * (i + 1))
+    raise RuntimeError(f"Meta non-JSON dopo {tries} tentativi ({url.split('/')[-1]}): {last}")
+
+
 def _insights(account, token, since, until, level="account"):
     p = {"access_token": token, "level": level,
          "time_range": json.dumps({"since": since, "until": until}),
          "fields": "spend,actions,action_values", "limit": 500}
-    r = requests.get(f"{API}/{account}/insights", params=p, verify=certifi.where(), timeout=90).json()
+    r = _get_json(f"{API}/{account}/insights", p)
     if "error" in r:
         raise RuntimeError(f"{account}: {r['error'].get('message')}")
     rows = r.get("data", [])
@@ -86,7 +101,7 @@ def _ads_launched(account, token, since, until):
     p = {"access_token": token, "fields": "id", "filtering": filtering, "limit": 500}
     n, url = 0, f"{API}/{account}/ads"
     while url:
-        r = requests.get(url, params=p, verify=certifi.where(), timeout=90).json()
+        r = _get_json(url, p)
         if "error" in r:
             raise RuntimeError(f"{account} (ads): {r['error'].get('message')}")
         n += len(r.get("data", []))
