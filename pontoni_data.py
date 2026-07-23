@@ -54,6 +54,23 @@ def _isoweek(d):
     return f"{y}-W{w:02d}"
 
 
+N_MONTHS = 6
+
+
+def _month_windows(ref, n):
+    """Ultimi n mesi (corrente + precedenti) → [(label 'YYYY-MM', since, until)]."""
+    import calendar
+    out = []
+    y, m = ref.year, ref.month
+    for i in range(n):
+        mm, yy = m - i, y
+        while mm <= 0:
+            mm += 12; yy -= 1
+        last = calendar.monthrange(yy, mm)[1]
+        out.append((f"{yy}-{mm:02d}", date(yy, mm, 1).isoformat(), date(yy, mm, last).isoformat()))
+    return list(reversed(out))
+
+
 def _parse_weeks(rows):
     out = {}
     for r in rows:
@@ -82,14 +99,28 @@ def build_data(token: str, ref: date = None) -> dict:
     wl = _parse_weeks(odoo._rg(camp + odoo.LEAD_ACTIVE + win, ["campaign_id", "create_date:week"]))
     wp = _parse_weeks(odoo._rg(odoo.APPT_DOMAIN + camp + win, ["campaign_id", "create_date:week"]))
 
+    # mensile (mese SOLARE, dal 1° del mese) con nome mese
+    NOMI = {"01": "Gennaio", "02": "Febbraio", "03": "Marzo", "04": "Aprile", "05": "Maggio",
+            "06": "Giugno", "07": "Luglio", "08": "Agosto", "09": "Settembre", "10": "Ottobre",
+            "11": "Novembre", "12": "Dicembre"}
+    months_w = _month_windows(ref, N_MONTHS)
+    months = [[k, f"{NOMI[k[5:7]]} {k[:4]}"] for k, _, _ in months_w]
+    ml, mp = {}, {}
+    for k, s, u in months_w:
+        mwin = [("create_date", ">=", s), ("create_date", "<=", u + " 23:59:59")]
+        ml[k] = odoo._by_campaign(camp + odoo.LEAD_ACTIVE + mwin)
+        mp[k] = odoo._by_campaign(odoo.APPT_DOMAIN + camp + mwin)
+
     modules = []
     for c, nlead in cum_lead.items():
         if c not in active or "?" in c:
             continue
         weekly = {w: {"lead": wl.get(c, {}).get(w, 0), "appt": wp.get(c, {}).get(w, 0)} for w in weeks}
+        monthly = {k: {"lead": ml[k].get(c, 0), "appt": mp[k].get(c, 0)} for k, _ in months}
         modules.append({"name": _clean(c), "source": _source(c),
                         "cum": {"lead": nlead, "appt": cum_pres.get(c, 0),
-                                "pres": cum_presentato.get(c, 0)}, "weekly": weekly})
+                                "pres": cum_presentato.get(c, 0)},
+                        "weekly": weekly, "monthly": monthly})
     modules.sort(key=lambda m: -m["cum"]["lead"])
 
     # Meta: spesa per fonte
@@ -150,4 +181,4 @@ def build_data(token: str, ref: date = None) -> dict:
                            for s in ("Landing", "Lead ADS")} for w in weeks}}
 
     return {"generated": datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "weeks": weeks, "modules": modules, "cost_source": cost}
+            "weeks": weeks, "months": months, "modules": modules, "cost_source": cost}

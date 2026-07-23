@@ -20,6 +20,7 @@ CSS = """
 .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
 h1{font-size:clamp(24px,3.5vw,34px);margin:6px 0 2px;letter-spacing:-.02em;font-weight:750}
 .sub{color:var(--ink-2);font-size:14px;margin:0}
+.sel{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end}
 .wk{display:flex;flex-direction:column;gap:4px}
 .wk label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);font-weight:700}
 .wk select{font-family:var(--mono);font-size:15px;font-weight:600;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);box-shadow:var(--shadow);cursor:pointer}
@@ -64,8 +65,11 @@ def build(data: dict) -> str:
     <h1>Spaccato moduli — appuntamenti</h1>
     <p class="sub">Lead entrati e <b>appuntamenti fissati</b> per modulo. Solo moduli attivi. Numeri assoluti.</p>
   </div>
-  <div class="wk"><label for="wksel">Settimana</label>
-    <select id="wksel">{"".join(f'<option value="{i}"{" selected" if i==default else ""}>{w}</option>' for i,w in enumerate(weeks))}</select>
+  <div class="sel">
+    <div class="wk"><label for="wksel">Settimana</label>
+      <select id="wksel">{"".join(f'<option value="{i}"{" selected" if i==default else ""}>{w}</option>' for i,w in enumerate(weeks))}</select></div>
+    <div class="wk"><label for="msel">Mese</label>
+      <select id="msel">{"".join(f'<option value="{i}"{" selected" if i==len(data["months"])-1 else ""}>{lab}</option>' for i,(k,lab) in enumerate(data["months"]))}</select></div>
     <div class="upd">Aggiornato: {data['generated']} <button id="refresh" title="Ricarica l'ultimo dato generato (rigenerato ogni giorno)">🔄 Aggiorna</button></div>
   </div>
 </div>
@@ -79,8 +83,8 @@ def build(data: dict) -> str:
 
 <div class="tablewrap"><table>
   <thead>
-    <tr class="grp"><th class="l"></th><th></th><th colspan="2" id="wkhead">Settimana</th><th colspan="4" class="sep">Cumulativo (dalla creazione)</th><th class="sep">Costo/app</th></tr>
-    <tr><th class="l">Modulo</th><th class="l">Fonte</th><th>Lead</th><th>Fissati</th><th class="sep">Lead</th><th>Fissati</th><th>Presentati</th><th>%</th><th class="sep">€/app (modulo)</th></tr>
+    <tr class="grp"><th class="l"></th><th></th><th colspan="2" id="wkhead">Settimana</th><th colspan="2" id="mhead" class="sep">Mese</th><th colspan="4" class="sep">Cumulativo (dalla creazione)</th><th class="sep">Costo/app</th></tr>
+    <tr><th class="l">Modulo</th><th class="l">Fonte</th><th>Lead</th><th>Fissati</th><th class="sep">Lead</th><th>Fissati</th><th class="sep">Lead</th><th>Fissati</th><th>Presentati</th><th>%</th><th class="sep">€/app (modulo)</th></tr>
   </thead>
   <tbody id="rows"></tbody>
 </table></div>
@@ -96,29 +100,36 @@ function eur(v){{return v==null?'–':'€'+v.toLocaleString('it-IT')}}
 function render(){{
   const wi = +document.getElementById('wksel').value;
   const wk = DATA.weeks[wi];
+  const mi = +document.getElementById('msel').value;
+  const mkey = DATA.months[mi][0];
   document.getElementById('wkhead').textContent = 'Settimana ' + wk;
+  document.getElementById('mhead').textContent = DATA.months[mi][1];
   const cs = DATA.cost_source;
   document.getElementById('cpaLandCum').textContent = eur(cs.cum['Landing'].cpa);
   document.getElementById('cpaLeadCum').textContent = eur(cs.cum['Lead ADS'].cpa);
   const wl = cs.weekly[wk] || {{}};
   document.getElementById('cpaLandWk').textContent = 'settimana: ' + eur((wl['Landing']||{{}}).cpa) + ' · ' + ((wl['Landing']||{{}}).appt||0) + ' app';
   document.getElementById('cpaLeadWk').textContent = 'settimana: ' + eur((wl['Lead ADS']||{{}}).cpa) + ' · ' + ((wl['Lead ADS']||{{}}).appt||0) + ' app';
-  let tL=0,tA=0,tCL=0,tCA=0,tCP=0, rows='';
+  let tL=0,tA=0,tML=0,tMA=0,tCL=0,tCA=0,tCP=0, rows='';
   for(const m of DATA.modules){{
     const w = m.weekly[wk] || {{lead:0,appt:0}};
+    const mo = m.monthly[mkey] || {{lead:0,appt:0}};
     const cl = m.cum.lead, ca = m.cum.appt, cp = m.cum.pres||0, pct = cl? Math.round(100*ca/cl):0;
     const tag = m.source==='Landing'?'<span class="tag land">Landing</span>':'<span class="tag lead">Lead ADS</span>';
     rows += `<tr><td class="l">${{m.name.split('|')[0].trim()}}</td><td class="l">${{tag}}</td>`+
       `<td>${{w.lead}}</td><td>${{w.appt}}</td>`+
+      `<td class="sep">${{mo.lead}}</td><td>${{mo.appt}}</td>`+
       `<td class="sep">${{cl}}</td><td>${{ca}}</td><td>${{cp}}</td><td class="pct">${{pct}}%</td>`+
       `<td class="sep">${{eur(m.cum.cpa)}}</td></tr>`;
-    tL+=w.lead;tA+=w.appt;tCL+=cl;tCA+=ca;tCP+=cp;
+    tL+=w.lead;tA+=w.appt;tML+=mo.lead;tMA+=mo.appt;tCL+=cl;tCA+=ca;tCP+=cp;
   }}
   rows += `<tr class="tot"><td class="l">Totale attivi</td><td></td><td>${{tL}}</td><td>${{tA}}</td>`+
+    `<td class="sep">${{tML}}</td><td>${{tMA}}</td>`+
     `<td class="sep">${{tCL}}</td><td>${{tCA}}</td><td>${{tCP}}</td><td class="pct">${{tCL?Math.round(100*tCA/tCL):0}}%</td><td class="sep"></td></tr>`;
   document.getElementById('rows').innerHTML = rows;
 }}
 document.getElementById('wksel').addEventListener('change', render);
+document.getElementById('msel').addEventListener('change', render);
 document.getElementById('refresh').addEventListener('click', function(){{ location.href = location.pathname + '?_=' + Date.now(); }});
 render();
 </script>
