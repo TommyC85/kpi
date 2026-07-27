@@ -111,7 +111,7 @@ def build():
 <div class="head">
   <div><div class="eyebrow">Varini · GuitarTribe</div><h1>Corsi (LearnDash)</h1>
     <p class="sub">Chi possiede i corsi — clienti Woo <b>e migrati dal vecchio portale</b>.</p></div>
-  <div class="upd">Aggiornato: {gen} <button onclick="location.href=location.pathname+'?_='+Date.now()">🔄 Aggiorna</button></div>
+  <div class="upd">Aggiornato: {gen} · si aggiorna ogni lunedì mattina <button onclick="location.href=location.pathname+'?_='+Date.now()" title="Ricarica l'ultima versione pubblicata. I dati si ricalcolano da soli ogni lunedì — questo pulsante non lancia un nuovo calcolo.">🔄 Ricarica</button></div>
 </div>
 <div class="tiles">
   <div class="tile"><div class="lab">Persone con ≥1 corso</div><div class="big">{num(total)}</div><div class="cap">totale in LearnDash</div></div>

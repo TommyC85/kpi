@@ -2,7 +2,14 @@ name: Varini settimanale (Corsi + Riacquisti)
 
 on:
   schedule:
-    - cron: "0 3 * * 1"   # lunedì notte (build pesante ~15 min, separato dal giro giornaliero)
+    # lunedì: build pesante ~15 min. Tanti tentativi notturni (GitHub ritarda molto e
+    # in modo variabile) per completare entro le 06:00 UTC (08:00 Roma).
+    - cron: "0 20 * * 0"   # domenica sera UTC
+    - cron: "0 22 * * 0"
+    - cron: "0 0 * * 1"
+    - cron: "0 2 * * 1"
+  push:
+    branches: [main]   # rebuild on-demand: unica leva manuale (workflow_dispatch → 403)
   workflow_dispatch: {}
 
 concurrency:

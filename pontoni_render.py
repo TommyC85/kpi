@@ -70,7 +70,7 @@ def build(data: dict) -> str:
       <select id="wksel">{"".join(f'<option value="{i}"{" selected" if i==default else ""}>{w}</option>' for i,w in enumerate(weeks))}</select></div>
     <div class="wk"><label for="msel">Mese</label>
       <select id="msel">{"".join(f'<option value="{i}"{" selected" if i==len(data["months"])-1 else ""}>{lab}</option>' for i,(k,lab) in enumerate(data["months"]))}</select></div>
-    <div class="upd">Aggiornato: {data['generated']} <button id="refresh" title="Ricarica l'ultimo dato generato (rigenerato ogni giorno)">🔄 Aggiorna</button></div>
+    <div class="upd">Aggiornato: {data['generated']} · si aggiorna ogni mattina entro le 8:00 <button id="refresh" title="Ricarica l'ultima versione pubblicata. I dati si ricalcolano da soli ogni mattina — questo pulsante non lancia un nuovo calcolo.">🔄 Ricarica</button></div>
   </div>
 </div>
 
