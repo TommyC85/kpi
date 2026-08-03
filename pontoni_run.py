@@ -4,12 +4,18 @@ Dati freschi da Odoo+Meta, poi render interattivo. Deploy su /tommaso/kpi/ponton
 Env: ODOO_*, SUPABASE_* (token Meta) o META_TOKEN."""
 import os
 import sys
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from pontoni_data import build_data
 from pontoni_render import build
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), "pontoni")
+
+
+def _today_rome() -> date:
+    """Data di riferimento in ora di Roma, non in UTC (vedi kpi_run._today_rome)."""
+    return datetime.now(ZoneInfo("Europe/Rome")).date()
 
 
 def _token():
@@ -28,7 +34,7 @@ def _token():
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    ref = date.fromisoformat(args[0]) if args else date.today()
+    ref = date.fromisoformat(args[0]) if args else _today_rome()
     os.makedirs(OUT_DIR, exist_ok=True)
     try:
         data = build_data(_token(), ref)

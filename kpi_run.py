@@ -18,6 +18,7 @@ Uso:
 import os
 import sys
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from kpi_engine import build_kpi, build_weekly_series
 from kpi_render import render_kpi_multiweek
@@ -42,6 +43,16 @@ DOC = ('<!doctype html>\n<html lang="it">\n<head>\n'
        '</head>\n<body>\n{body}\n</body>\n</html>\n')
 
 
+def _today_rome() -> date:
+    """Data di riferimento in ora di Roma, NON in UTC.
+
+    I cron girano di notte: un giro alle 23:32 UTC di domenica è già lunedì
+    01:32 a Roma, ma `date.today()` in CI (UTC) restituiva ancora domenica →
+    `last_week()` dava la settimana SBAGLIATA (quella chiusa 8 giorni prima).
+    """
+    return datetime.now(ZoneInfo("Europe/Rome")).date()
+
+
 def _token():
     try:
         from store import get_meta_token
@@ -60,7 +71,7 @@ def _token():
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    ref = date.fromisoformat(args[0]) if args else date.today()
+    ref = date.fromisoformat(args[0]) if args else _today_rome()
     token = _token()
 
     model = build_kpi(ref, token)
