@@ -174,14 +174,19 @@ def _balducci(token, since, until):
 def _varini(token, since, until):
     ins = _insights(ACC_VARINI, token, since, until)
     spend = ins["spend"]
-    out = {"spend": round(spend, 2), "revenue": None, "orders": None,
+    out = {"spend": round(spend, 2), "revenue": None, "revenue_gross": None,
+           "tax": None, "orders": None,
            "meta_orders": None, "meta_purchases": _act(ins["actions"], PURCHASE_KEYS),
            "profit": None, "roas": None}
     try:
         import woo
         w = woo.fetch_week(since, until)
-        rev = w["real_revenue"]
-        out.update({"revenue": round(rev, 2), "orders": w["real_orders"],
+        # Profitto e ROAS sul NETTO: l'IVA incassata dai clienti non è ricavo,
+        # la giri allo Stato. La spesa Meta è già netta (Meta aggiunge le imposte
+        # in fattura, non nell'"importo speso"), quindi ora le basi combaciano.
+        rev = w["real_revenue_net"]
+        out.update({"revenue": rev, "revenue_gross": w["real_revenue"],
+                    "tax": w["real_tax"], "orders": w["real_orders"],
                     "meta_orders": w["meta_orders"],
                     "profit": round(rev - spend, 2),
                     "roas": round(rev / spend, 2) if spend else None})

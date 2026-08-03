@@ -61,15 +61,36 @@ def fetch_week(since_date: str, until_date: str, prefix: str = "") -> dict:
     def email(o):
         return ((o.get("billing", {}) or {}).get("email", "") or "").strip().lower()
 
-    real_rev = sum(float(o.get("total", 0) or 0) for o in orders)
+    def gross(o):
+        return float(o.get("total", 0) or 0)
+
+    def tax(o):
+        """IVA registrata sull'ordine.
+
+        ⚠️ Vale solo per i negozi che calcolano l'imposta. Varini ha due aliquote
+        configurate (22% standard, 4% editoria) e prezzi IVA inclusa, quindi
+        `total_tax` riflette già il mix per prodotto: non va ricalcolato a mano.
+        Balducci e Di Domenico NON hanno aliquote configurate → total_tax = 0 e
+        il netto coincide col lordo (l'IVA non è scorporabile dai loro dati).
+        """
+        return float(o.get("total_tax", 0) or 0)
+
+    real_rev = sum(gross(o) for o in orders)
+    real_tax = sum(tax(o) for o in orders)
     customers = {email(o) for o in orders if email(o)}
     meta = [o for o in orders if _is_meta(_attr_source(o))]
     meta_cust = {email(o) for o in meta if email(o)}
+    meta_rev = sum(gross(o) for o in meta)
+    meta_tax = sum(tax(o) for o in meta)
     return {
         "real_orders": len(orders),
         "real_revenue": round(real_rev, 2),
+        "real_revenue_net": round(real_rev - real_tax, 2),
+        "real_tax": round(real_tax, 2),
         "real_customers": len(customers),
         "meta_orders": len(meta),
-        "meta_revenue": round(sum(float(o.get("total", 0) or 0) for o in meta), 2),
+        "meta_revenue": round(meta_rev, 2),
+        "meta_revenue_net": round(meta_rev - meta_tax, 2),
+        "meta_tax": round(meta_tax, 2),
         "meta_customers": len(meta_cust),
     }

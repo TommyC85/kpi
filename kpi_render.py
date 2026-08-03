@@ -310,12 +310,20 @@ def _cards(m: dict) -> str:
     v_pct = round(100 * V["profit"] / v_target_wk) if V.get("profit") else 0
     v_stat = "good" if v_pct >= 100 else ("warn" if v_pct >= 70 else "bad")
     roas_pill = "good" if (V.get("roas") or 0) >= 1 else "bad"
+    # Base di calcolo esplicita: il lordo resta visibile (è il numero a cui Tommaso
+    # è abituato), ma profitto e ROAS girano sul netto perché l'IVA non è ricavo.
+    if V.get("revenue_gross") and V.get("tax"):
+        v_basis = ("Incasso Woo " + eur(V["revenue_gross"]) + " − IVA " + eur(V["tax"])
+                   + " = " + eur(V["revenue"]) + " netto, − spesa Meta " + eur(V.get("spend"))
+                   + " (già netta).")
+    else:
+        v_basis = "Incasso reale (WooCommerce) − spesa Meta."
     varini = f"""
   <article class="card">
     <div class="card-h"><span class="idx">02</span><span class="name">Varini</span><span class="sect">Corsi chitarra · GuitarTribe</span><span class="spacer"></span>{pill(v_stat,f"{v_pct}% del target")}</div>
     <div class="kpis">
-      {krow("Profitto netto / settimana","Incasso reale (WooCommerce) − spesa Meta. Sotto il target si lavora gratis.","Obiettivo","≥ "+eur(v_target_wk),"Attuale",eur(V.get("profit")),pill(v_stat,f"{v_pct}%"),star=True,hot=True)}
-      {krow("ROAS reale (WooCommerce)","Break-even a 1,0 (COGS ~0 sui corsi). Sopra = spesa scalabile.","Break-even","≥ 1,0","Attuale",str(V.get("roas") or "n.d.").replace(".",","),pill(roas_pill,"Scalabile" if roas_pill=="good" else "Sotto"))}
+      {krow("Profitto netto / settimana",v_basis+" Sotto il target si lavora gratis.","Obiettivo","≥ "+eur(v_target_wk),"Attuale",eur(V.get("profit")),pill(v_stat,f"{v_pct}%"),star=True,hot=True)}
+      {krow("ROAS reale (WooCommerce, netto)","Su incasso IVA esclusa. Break-even a 1,0 (COGS ~0 sui corsi). Sopra = spesa scalabile.","Break-even","≥ 1,0","Attuale",str(V.get("roas") or "n.d.").replace(".",","),pill(roas_pill,"Scalabile" if roas_pill=="good" else "Sotto"))}
       {krow("Fedeltà tracking (Meta vs reale)","Meta dichiara "+num(V.get("meta_purchases"))+" acquisti; ordini reali Woo "+num(V.get("orders"))+" (di cui "+num(V.get("meta_orders"))+" attribuiti a Meta).","Meta dice",num(V.get("meta_purchases")),"Reali Woo",num(V.get("orders")),pill("warn","Meta gonfia"))}
       {activity_row(V.get("activity"))}
     </div>
