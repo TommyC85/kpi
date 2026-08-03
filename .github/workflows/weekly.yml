@@ -72,6 +72,10 @@ jobs:
           ODOO_DB: ${{ secrets.ODOO_DB }}
           ODOO_USER: ${{ secrets.ODOO_USER }}
           ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
+          # Google Ads Pontoni via foglio (webhook Apps Script, non API).
+          # Se mancano, la riga Google degrada a "dati non disponibili": non rompe il giro.
+          GADS_PONTONI_URL: ${{ secrets.GADS_PONTONI_URL }}
+          GADS_PONTONI_TOKEN: ${{ secrets.GADS_PONTONI_TOKEN }}
         run: python kpi_run.py
 
       - name: Genera spaccato moduli Pontoni (Odoo)
