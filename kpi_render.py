@@ -170,6 +170,35 @@ def krow(name, sub, tgt_lbl, tgt, act_lbl, act, pill_html, star=False, hot=False
             f'<div>{pill_html}</div></div>')
 
 
+def google_row(P):
+    """Riga Google Ads (Pontoni) — canale affiancato, NON sommato a Meta.
+
+    I dati arrivano dal foglio scritto dallo script dentro Google Ads. Le
+    conversioni sono quelle DICHIARATE da Google: in Odoo non esiste nessuna
+    campagna Google, quindi qui non c'è un costo/appuntamento reale e sommare
+    questi lead a quelli Meta produrrebbe un numero falso.
+    """
+    g = P.get("google")
+    if not g:
+        err = P.get("google_error")
+        if not err:
+            return ""
+        return krow("Google Ads", f"Dati non disponibili: {err}",
+                    "Stato", "—", "Attuale", "n.d.",
+                    '<span class="pill p-neutral">da controllare</span>')
+
+    cpa = g.get("cost_per_conversion")
+    camp = ", ".join(g.get("campaigns") or []) or "—"
+    sub = (f"Canale separato, <b>non sommato</b> a Meta: le {num(g['conversions'])} "
+           f"conversioni sono dichiarate da Google e in Odoo non arriva nessuna "
+           f"campagna Google, quindi qui manca il costo/appuntamento reale. "
+           f"CPC {eur(g.get('cpc'),2)} · {camp}")
+    return krow("Google Ads · spesa e conversioni dichiarate", sub,
+                "Costo/conv.", eur(cpa, 2) if cpa else "—",
+                "Spesa/sett", eur(g["spend"]),
+                '<span class="pill p-neutral">affiancato</span>')
+
+
 def activity_row(a):
     """Riga KPI di controllo (attività diretta del media buyer)."""
     if not a:
@@ -359,6 +388,7 @@ def _cards(m: dict) -> str:
       {krow("Costo per lead tracciato","Obiettivo dichiarato.","Obiettivo","≤ €16","Attuale",eur(cpl,2),pill(cpl_pill,"Raggiunto" if cpl_pill=="good" else "Sopra"))}
       {krow("Volume lead / settimana","","Riferimento","—","Attuale",num(P["leads"]),pill("good","Solido"))}
       {krow("Spesa / mese","Target €20k/mese.","Target","€20k","Attuale","~"+eur(sp_month),pill("warn",f"{sp_pill_pct}%"))}
+      {google_row(P)}
       {activity_row(P.get("activity"))}
     </div>
     <div class="dual">{mon}{panel_right}</div>
@@ -399,7 +429,7 @@ def _cards(m: dict) -> str:
     <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti fissati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
   </section>"""
 
-    foot = (f'<div class="foot"><b>Fonti:</b> Meta Ads · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
+    foot = (f'<div class="foot"><b>Fonti:</b> Meta Ads · Google Ads via foglio (Pontoni) · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
             f'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su libro €{D["book_price"]:.0f}. '
             f'Costo/appuntamento Pontoni: dato di contesto (coorte matura), non un obiettivo del media buyer. '
             f'Aggiornato automaticamente ogni lunedì.</div>')
@@ -413,7 +443,7 @@ def _legend_foot(m):
     <div class="lg"><div class="kick">Livello 1 — controllo</div><h3>KPI di controllo</h3><p>CPA/CPL, % budget sui vincenti, disciplina di tracking, velocità di test, <b>traiettoria</b> verso il target: guidati dal media buyer.</p></div>
     <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti fissati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
   </section>"""
-    foot = ('<div class="foot"><b>Fonti:</b> Meta Ads · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
+    foot = ('<div class="foot"><b>Fonti:</b> Meta Ads · Google Ads via foglio (Pontoni) · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
             'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su libro €37. '
             'Costo/appuntamento Pontoni: dato di contesto (coorte matura), non un obiettivo del media buyer. '
             'Aggiornato automaticamente ogni giorno.</div>')

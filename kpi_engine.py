@@ -219,7 +219,15 @@ def _pontoni(token, since, until, ref):
         "cpl": round(spend / leads, 2) if leads else None,
         "spend_month": round(spend * WEEKS_PER_MONTH, 0),
         "quality_pct": None, "types": None, "modules": None, "trend": None, "odoo_error": None,
+        "google": None, "google_error": None,
     }
+    # Google Ads (via foglio, non API). Numeri DICHIARATI da Google: in Odoo non
+    # esiste nessuna campagna Google, quindi restano accanto a Meta e non si sommano.
+    try:
+        import gads
+        out["google"] = gads.fetch_week(since, until)
+    except Exception as e:
+        out["google_error"] = str(e)[:120]
     # Odoo (sola lettura) — funnel qualità + trend costo/appuntamento
     try:
         import odoo
@@ -259,8 +267,16 @@ def _pontoni_meta(token, since, until):
     """Solo parte Meta di Pontoni (per la serie settimanale, senza Odoo)."""
     ins = _insights(ACC_PONTONI, token, since, until)
     spend = ins["spend"]; leads = _act(ins["actions"], LEAD_KEYS)
-    return {"spend": round(spend, 2), "leads": leads,
-            "cpl": round(spend / leads, 2) if leads else None}
+    out = {"spend": round(spend, 2), "leads": leads,
+           "cpl": round(spend / leads, 2) if leads else None,
+           "google": None, "google_error": None}
+    # Anche nella serie settimanale: le schede per settimana leggono da qui.
+    try:
+        import gads
+        out["google"] = gads.fetch_week(since, until)
+    except Exception as e:
+        out["google_error"] = str(e)[:120]
+    return out
 
 
 def _isoweek(d):
