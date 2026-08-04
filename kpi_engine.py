@@ -228,6 +228,7 @@ def _pontoni(token, since, until, ref):
         out["google"] = gads.fetch_week(since, until)
     except Exception as e:
         out["google_error"] = str(e)[:120]
+    _add_blended(out, since, until)
     # Odoo (sola lettura) — funnel qualità + trend costo/appuntamento
     try:
         import odoo
@@ -276,7 +277,30 @@ def _pontoni_meta(token, since, until):
         out["google"] = gads.fetch_week(since, until)
     except Exception as e:
         out["google_error"] = str(e)[:120]
+    _add_blended(out, since, until)
     return out
+
+
+def _add_blended(out, since, until):
+    """Costo per lead UNIFICATO: (spesa Meta + spesa Google) ÷ lead reali Odoo.
+
+    Denominatore = Odoo, non la somma dei lead dichiarati dai due canali: Meta e
+    Google contano con finestre di attribuzione proprie e sommarli darebbe un
+    numero che non corrisponde a nessun contatto reale. Odoo è l'unico conteggio
+    che esiste una volta sola.
+    """
+    out["leads_odoo"] = None
+    out["cpl_blended"] = None
+    try:
+        import odoo
+        n = odoo.leads_in_range(since, until)
+        out["leads_odoo"] = n
+        g = (out.get("google") or {}).get("spend") or 0
+        tot = (out.get("spend") or 0) + g
+        out["spend_all"] = round(tot, 2)
+        out["cpl_blended"] = round(tot / n, 2) if n else None
+    except Exception as e:
+        out["blended_error"] = str(e)[:120]
 
 
 def _isoweek(d):

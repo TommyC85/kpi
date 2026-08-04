@@ -137,3 +137,14 @@ if __name__ == "__main__":
     u = (date.today() - timedelta(days=15)).isoformat()
     print("funnel_by_type:", json.dumps(funnel_by_type(s, u), ensure_ascii=False))
     print("quality_mix:", json.dumps(quality_mix(s, u), ensure_ascii=False))
+
+
+def leads_in_range(since: str, until: str) -> int:
+    """Lead creati nell'intervallo (date incluse) — TUTTE le campagne.
+
+    Denominatore del costo per lead unificato: è l'unico conteggio reale, mentre
+    Meta e Google dichiarano ognuno i propri con finestre di attribuzione diverse
+    (e sommarli conterebbe due volte, o zero volte, gli stessi contatti).
+    """
+    return _count([("create_date", ">=", since),
+                   ("create_date", "<=", f"{until} 23:59:59")])

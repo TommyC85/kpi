@@ -170,6 +170,30 @@ def krow(name, sub, tgt_lbl, tgt, act_lbl, act, pill_html, star=False, hot=False
             f'<div>{pill_html}</div></div>')
 
 
+def blended_row(P):
+    """Costo per lead UNIFICATO: tutta la spesa (Meta + Google) ÷ lead reali Odoo.
+
+    È il numero da guardare per sapere quanto costa davvero un contatto. Sta sopra
+    le righe per-canale perché quelle non sono confrontabili fra loro: Meta e
+    Google dichiarano i propri lead con finestre diverse, Odoo li conta una volta.
+    """
+    cpl = P.get("cpl_blended")
+    n = P.get("leads_odoo")
+    if not cpl or not n:
+        return ""
+    g = (P.get("google") or {}).get("spend") or 0
+    meta_sp = P.get("spend") or 0
+    quota = round(100 * g / (meta_sp + g)) if (meta_sp + g) else 0
+    stat = "good" if cpl <= 16 else ("warn" if cpl <= 20 else "bad")
+    sub = (f"Spesa totale {eur(meta_sp + g)} (Meta {eur(meta_sp)} + Google {eur(g)}, "
+           f"{quota}% del budget) ÷ <b>{num(n)} lead reali in Odoo</b>. "
+           f"Denominatore Odoo e non la somma dei lead dichiarati dai due canali: "
+           f"quelli userebbero finestre di attribuzione diverse.")
+    return krow("Costo per lead unificato · Meta + Google", sub,
+                "Obiettivo", "≤ €16", "Attuale", eur(cpl, 2),
+                pill(stat, "Sotto target" if stat == "good" else "Sopra"))
+
+
 def google_row(P):
     """Riga Google Ads (Pontoni) — canale affiancato, NON sommato a Meta.
 
@@ -385,7 +409,8 @@ def _cards(m: dict) -> str:
     <div class="card-h"><span class="idx">01</span><span class="name">Pontoni</span><span class="sect">Centri acustici</span><span class="spacer"></span>{cpl_pill_badge(cpl_pill)}</div>
     <div class="kpis">
       {krow("Qualità del lead: % da campagne ad alta conversione","Landing + moduli qualificati fissano appuntamenti fino a 3× le Lead ADS. Dove va il budget lo controlli tu.","Obiettivo","≥ 50%","Attuale",q_disp,q_pill,star=True,hot=True)}
-      {krow("Costo per lead tracciato","Obiettivo dichiarato.","Obiettivo","≤ €16","Attuale",eur(cpl,2),pill(cpl_pill,"Raggiunto" if cpl_pill=="good" else "Sopra"))}
+      {blended_row(P)}
+      {krow("Costo per lead tracciato · solo Meta","Lead dichiarati da Meta, spesa Meta. Non include Google.","Obiettivo","≤ €16","Attuale",eur(cpl,2),pill(cpl_pill,"Raggiunto" if cpl_pill=="good" else "Sopra"))}
       {krow("Volume lead / settimana","","Riferimento","—","Attuale",num(P["leads"]),pill("good","Solido"))}
       {krow("Spesa / mese","Target €20k/mese.","Target","€20k","Attuale","~"+eur(sp_month),pill("warn",f"{sp_pill_pct}%"))}
       {google_row(P)}
