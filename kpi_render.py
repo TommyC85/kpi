@@ -388,8 +388,14 @@ def _cards(m: dict) -> str:
     q = P["quality_pct"]
     q_disp = f"~{q}%" if q is not None else "n.d."
     q_pill = pill("warn","Mix da spostare") if (q is None or q < 50) else pill("good","OK")
+    # Il target €20k/mese si misura su TUTTA la spesa: Meta + Google, non solo Meta.
     sp_month = P["spend_month"]
-    sp_pill_pct = round(100 * sp_month / m["targets"]["pontoni_spend"]) if sp_month else 0
+    sp_g = P.get("spend_month_google") or 0
+    sp_all = P.get("spend_month_all") or sp_month
+    sp_pill_pct = round(100 * sp_all / m["targets"]["pontoni_spend"]) if sp_all else 0
+    sp_sub = (f"Proiezione dalla settimana ×4,35. Meta <b>{eur(sp_month)}</b>"
+              f" + Google <b>{eur(sp_g)}</b> = <b>{eur(sp_all)}</b>."
+              if sp_g else "Target €20k/mese. Solo Meta: Google non disponibile.")
     if P.get("modules"):
         panel_right = (f'<div class="insight" style="margin:0"><h4>Spaccato per modulo (leva sulla qualità)</h4>'
                        f'<p>Tasso lead→appuntamento per campagna (coorte matura, ≥15 lead). Tra parentesi i lead.</p>'
@@ -412,7 +418,7 @@ def _cards(m: dict) -> str:
       {blended_row(P)}
       {krow("Costo per lead tracciato · solo Meta","Lead dichiarati da Meta, spesa Meta. Non include Google.","Obiettivo","≤ €16","Attuale",eur(cpl,2),pill(cpl_pill,"Raggiunto" if cpl_pill=="good" else "Sopra"))}
       {krow("Volume lead / settimana","","Riferimento","—","Attuale",num(P["leads"]),pill("good","Solido"))}
-      {krow("Spesa / mese","Target €20k/mese.","Target","€20k","Attuale","~"+eur(sp_month),pill("warn",f"{sp_pill_pct}%"))}
+      {krow("Spesa / mese · Meta + Google",sp_sub,"Target","€20k","Attuale","~"+eur(sp_all),pill("warn",f"{sp_pill_pct}%"))}
       {google_row(P)}
       {activity_row(P.get("activity"))}
     </div>

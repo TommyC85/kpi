@@ -296,9 +296,15 @@ def _add_blended(out, since, until):
         n = odoo.leads_in_range(since, until)
         out["leads_odoo"] = n
         g = (out.get("google") or {}).get("spend") or 0
-        tot = (out.get("spend") or 0) + g
+        meta_sp = out.get("spend") or 0
+        tot = meta_sp + g
         out["spend_all"] = round(tot, 2)
         out["cpl_blended"] = round(tot / n, 2) if n else None
+        # Spesa mensile proiettata, per canale e totale: il target €20k/mese va
+        # confrontato con TUTTA la spesa, non solo con quella Meta.
+        out["spend_month"] = round(meta_sp * WEEKS_PER_MONTH, 0)
+        out["spend_month_google"] = round(g * WEEKS_PER_MONTH, 0)
+        out["spend_month_all"] = round(tot * WEEKS_PER_MONTH, 0)
     except Exception as e:
         out["blended_error"] = str(e)[:120]
 
