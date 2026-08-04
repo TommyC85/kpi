@@ -54,6 +54,43 @@ tbody tr.tot td{border-top:2px solid var(--line);border-bottom:none;font-weight:
 import navbar
 CSS = CSS + navbar.NAV_CSS
 
+def _n(v, suf=""):
+    return "—" if v is None else f"{v:,.0f}".replace(",", ".") + suf
+
+
+def aag_block(a):
+    """AAG per canale: Meta vs Google. Il FISSATO e' il numero primario."""
+    if not a or a.get("error"):
+        msg = (a or {}).get("error", "dati non disponibili")
+        return f'<div class="note"><b>AAG per canale:</b> {msg}</div>'
+    rows = ""
+    for r in a["rows"]:
+        rows += (f'<tr><td class="l"><b>{r["canale"]}</b></td>'
+                 f'<td>{_n(r["spend"], " €") if r["spend"] else "—"}</td>'
+                 f'<td>{_n(r["lead"])}</td>'
+                 f'<td><b>{_n(r["fissati"])}</b></td>'
+                 f'<td>{_n(r["rate_f"], "%") if r["rate_f"] else "—"}</td>'
+                 f'<td><b>{"€"+_n(r["cpf"]) if r["cpf"] else "n.d."}</b></td>'
+                 f'<td class="sep">{_n(r["presentati"])}</td>'
+                 f'<td>{_n(r["show"], "%") if r["show"] else "—"}</td>'
+                 f'<td>{"€"+_n(r["cpp"]) if r["cpp"] else "n.d."}</td>'
+                 f'<td>{"€"+str(r["cpl"]).replace(".", ",") if r["cpl"] else "—"}</td></tr>')
+    return f'''
+<h3 style="margin:34px 0 6px;font-size:17px">Apparecchi Acustici Gratis — Meta vs Google</h3>
+<div class="tablewrap"><table>
+  <thead>
+    <tr class="grp"><th class="l"></th><th></th><th colspan="4">Fissati (indicatore primario)</th><th colspan="3" class="sep">Presentati</th><th></th></tr>
+    <tr><th class="l">Canale</th><th>Spesa</th><th>Lead</th><th>Fissati</th><th>% fissa</th><th>€/fissato</th><th class="sep">Presentati</th><th>% si presenta</th><th>€/presentato</th><th>€/lead</th></tr>
+  </thead>
+  <tbody>{rows}</tbody>
+</table></div>
+<div class="note"><b>Coorte matura {a["since"]} → {a["until"]}</b> (90→15 giorni): gli appuntamenti maturano dopo, su finestre fresche il costo risulterebbe gonfiato. ·
+<b>⚠️ Attribuzione approssimata:</b> in Odoo non esiste un campo canale, si usa la campagna come proxy — <i>AA Gratis | Landing</i> ≈ Google, <i>AA Gratis | META</i> ≈ Meta.
+Non e' pulito: anche la campagna Meta AAG porta sulla stessa landing (correlazione giornaliera +0,40), quindi il bucket Landing contiene una parte di traffico Meta e i numeri di Google sono penalizzati.
+Per separarli davvero serve compilare <code>x_studio_url_landing_1</code> dal form.</div>
+'''
+
+
 def build(data: dict) -> str:
     weeks = data["weeks"]
     default = len(weeks) - 2 if len(weeks) >= 2 else len(weeks) - 1
@@ -91,6 +128,8 @@ def build(data: dict) -> str:
 
 <div class="note"><b>Definizione:</b> "appuntamento fissato" = un appuntamento <b>prenotato</b> (qualsiasi esito: presentato, no-show, annullato). La colonna <b>Presentati</b> (solo nel cumulativo) = di quelli, chi si è poi <b>presentato</b>. Fonte: esito appuntamento Odoo. ·
 <b>Maturità:</b> le settimane recenti hanno pochi appuntamenti perché i lead sono appena entrati e non ancora lavorati → guarda settimane di 3+ settimane fa per numeri stabili; il <b>cumulativo</b> è sempre affidabile.</div>
+
+{aag_block(data.get('aag'))}
 
 <div class="foot"><b>Fonti:</b> Odoo (appuntamenti fissati, sola lettura) + Meta (spesa). <b>€/app (modulo)</b> = spesa Meta di quel modulo ÷ appuntamenti fissati del modulo (costo reale per modulo, cumulativo). Le due card in alto sono il costo medio per fonte. "n.d." = spesa Meta non attribuibile al modulo per nome. Generato {data['generated']}.</div>
 

@@ -180,5 +180,46 @@ def build_data(token: str, ref: date = None) -> dict:
                                "cpa": round(wk_spend[w][s] / appt_src(w)[s]) if appt_src(w)[s] else None}
                            for s in ("Landing", "Lead ADS")} for w in weeks}}
 
+    # ── AAG per canale: Meta vs Google ───────────────────────────────────────
+    # Coorte MATURA (90→15 giorni): gli appuntamenti hanno bisogno di tempo, su una
+    # finestra fresca il costo per fissato risulterebbe assurdamente alto.
+    # ⚠️ In Odoo non c'è un campo canale: si usa la campagna come proxy —
+    # "AA Gratis | Landing" ≈ Google, "AA Gratis | META" ≈ Meta. NON è pulito:
+    # anche la campagna Meta AAG punta alla stessa landing (correlazione +0,40),
+    # quindi il bucket Landing contiene una parte di traffico Meta.
+    aag = None
+    try:
+        cs = (ref - timedelta(days=90)).isoformat()
+        cu = (ref - timedelta(days=15)).isoformat()
+        cwin = [("create_date", ">=", cs), ("create_date", "<", cu)]
+        meta_aag = sum(float(r.get("spend", 0) or 0) for r in meta(cs, cu)
+                       if "apparecchi acustici gratis" in r["campaign_name"].lower())
+        try:
+            import gads
+            goog = gads.fetch_week(cs, cu)["spend"]
+        except Exception:
+            goog = None
+
+        def _row(label, camp_like, spend):
+            c = [("campaign_id.name", "ilike", camp_like)]
+            lead = odoo._count(c + odoo.LEAD_ACTIVE + cwin)
+            fiss = odoo._count(odoo.APPT_DOMAIN + c + cwin)
+            pres = odoo._count(odoo.PRES_DOMAIN + c + cwin)
+            return {"canale": label, "spend": round(spend) if spend is not None else None,
+                    "lead": lead, "fissati": fiss, "presentati": pres,
+                    "cpl": round(spend / lead, 2) if (spend and lead) else None,
+                    "cpf": round(spend / fiss) if (spend and fiss) else None,
+                    "cpp": round(spend / pres) if (spend and pres) else None,
+                    "rate_f": round(100 * fiss / lead, 1) if lead else None,
+                    "show": round(100 * pres / fiss, 1) if fiss else None}
+
+        aag = {"since": cs, "until": cu, "rows": [
+            _row("Meta", "AA Gratis | META", meta_aag),
+            _row("Google", "AA Gratis | Landing", goog),
+        ]}
+    except Exception as e:
+        aag = {"error": str(e)[:120]}
+
     return {"generated": datetime.now().strftime("%d/%m/%Y %H:%M"),
-            "weeks": weeks, "months": months, "modules": modules, "cost_source": cost}
+            "weeks": weeks, "months": months, "modules": modules,
+            "cost_source": cost, "aag": aag}
