@@ -417,10 +417,17 @@ def _cards(m: dict) -> str:
         panel_right = f'<div class="insight" style="margin:0"><h4>Spaccato per modulo</h4><p>Dati Odoo temporaneamente non disponibili.<br><small>{P.get("odoo_error","")}</small></p></div>'
     if P.get("trend"):
         chart = _trend_svg(P["trend"])
+        last = next((t for t in reversed(P["trend"]) if not t.get("immature") and t.get("cpa")), None)
+        if last and last.get("spend_google"):
+            cpa_basis = (f'Ultimo mese chiuso ({last["label"]}): spesa {eur(last["spend_all"])} '
+                         f'= Meta {eur(last["spend_meta"])} + Google {eur(last["spend_google"])} '
+                         f'÷ {num(last["appt"])} fissati. Solo Meta sarebbe {eur(last["cpa_meta_only"])}.')
+        else:
+            cpa_basis = "Fonte: Odoo + spesa Meta (Google non disponibile)."
         mon = (f'<div class="mon"><span class="mon-tag">◑ Dato monitorato · non è un obiettivo del media buyer</span>'
                f'<h4>Costo per appuntamento — andamento</h4>'
-               f'<p class="mon-p">Dipende anche dalla lavorazione lead del centro. Utile come contesto.</p>{chart}'
-               f'<p class="mon-p" style="margin:8px 0 0;font-size:10.5px;color:var(--ink-3)">€ per appuntamento · *ultimo mese in maturazione. Fonte: Odoo + spesa Meta.</p></div>')
+               f'<p class="mon-p">Appuntamenti <b>fissati</b> (Odoo) ÷ spesa <b>Meta + Google</b>. Dipende anche dalla lavorazione lead del centro.</p>{chart}'
+               f'<p class="mon-p" style="margin:8px 0 0;font-size:10.5px;color:var(--ink-3)">€ per appuntamento fissato · *ultimo mese in maturazione. {cpa_basis}</p></div>')
     else:
         mon = '<div class="mon"><span class="mon-tag">◑ Dato monitorato</span><h4>Costo per appuntamento — andamento</h4><p class="mon-p">Dati Odoo temporaneamente non disponibili.</p></div>'
     pontoni = f"""

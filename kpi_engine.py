@@ -248,16 +248,27 @@ def _pontoni(token, since, until, ref):
         total = sum(t["lead"] for t in types.values())
         high = sum(t["lead"] for n, t in types.items() if n in ("Landing", "Qualificati"))
         out["quality_pct"] = round(100 * high / total) if total else None
-        # trend: appuntamenti per mese (Odoo) ÷ spesa Meta per mese
+        # trend: appuntamenti fissati per mese (Odoo) ÷ spesa TOTALE per mese.
+        # Google va incluso: gli appuntamenti al numeratore arrivano da entrambi i
+        # canali, quindi dividere per la sola spesa Meta sottostima il costo reale.
         months = _month_windows(ref, 5)
         appt = odoo.appointments_by_month(months)
         trend = []
         for i, (label, s, u) in enumerate(months):
             a = appt.get(label, {}).get("appt", 0)
             msp = _insights(ACC_PONTONI, token, s, u)["spend"]
-            cpa = round(msp / a) if a else None
+            try:
+                import gads
+                gsp = gads.fetch_week(s, u)["spend"]
+            except Exception:
+                gsp = 0.0
+            tot = msp + gsp
+            cpa = round(tot / a) if a else None
             immature = (i == len(months) - 1)  # ultimo mese ancora in maturazione
-            trend.append({"label": label, "cpa": cpa, "appt": a, "immature": immature})
+            trend.append({"label": label, "cpa": cpa, "appt": a, "immature": immature,
+                          "spend_meta": round(msp), "spend_google": round(gsp),
+                          "spend_all": round(tot),
+                          "cpa_meta_only": round(msp / a) if a else None})
         out["trend"] = trend
     except Exception as e:
         out["odoo_error"] = str(e)[:160]
