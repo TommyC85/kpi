@@ -155,12 +155,13 @@ function render(){{
     const mo = m.monthly[mkey] || {{lead:0,appt:0}};
     const cl = m.cum.lead, ca = m.cum.appt, cp = m.cum.pres||0, pct = cl? Math.round(100*ca/cl):0;
     const tag = m.source==='Landing'?'<span class="tag land">Landing</span>':'<span class="tag lead">Lead ADS</span>';
-    rows += `<tr><td class="l">${{m.name.split('|')[0].trim()}}</td><td class="l">${{tag}}</td>`+
+    const off = m.dormant?'<span class="src" style="color:var(--warn)">spento · 0 lead da 14+ gg</span>':'';
+    rows += `<tr${{m.dormant?' style="opacity:.62"':''}}><td class="l">${{m.name.split('|')[0].trim()}}${{off}}</td><td class="l">${{tag}}</td>`+
       `<td>${{w.lead}}</td><td>${{w.appt}}</td>`+
       `<td class="sep">${{mo.lead}}</td><td>${{mo.appt}}</td>`+
       `<td class="sep">${{cl}}</td><td>${{ca}}</td><td>${{cp}}</td><td class="pct">${{pct}}%</td>`+
       `<td class="sep">${{eur(m.cum.cpa)}}</td></tr>`;
-    tL+=w.lead;tA+=w.appt;tML+=mo.lead;tMA+=mo.appt;tCL+=cl;tCA+=ca;tCP+=cp;
+    if(!m.dormant){{tL+=w.lead;tA+=w.appt;tML+=mo.lead;tMA+=mo.appt;tCL+=cl;tCA+=ca;tCP+=cp;}}
   }}
   rows += `<tr class="tot"><td class="l">Totale attivi</td><td></td><td>${{tL}}</td><td>${{tA}}</td>`+
     `<td class="sep">${{tML}}</td><td>${{tMA}}</td>`+

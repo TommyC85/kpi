@@ -113,15 +113,23 @@ def build_data(token: str, ref: date = None) -> dict:
 
     modules = []
     for c, nlead in cum_lead.items():
-        if c not in active or "?" in c:
+        # I moduli senza lead negli ultimi 14 giorni NON vengono nascosti: restano
+        # con flag "dormant" se hanno uno storico significativo (≥10 lead). Prima
+        # sparivano dalla pagina e sembrava che il modulo non fosse mai esistito
+        # (es. Lyric | Landing: 199 lead, ultimo il 12/07).
+        if "?" in c:
+            continue
+        dormant = c not in active
+        if dormant and nlead < 10:
             continue
         weekly = {w: {"lead": wl.get(c, {}).get(w, 0), "appt": wp.get(c, {}).get(w, 0)} for w in weeks}
         monthly = {k: {"lead": ml[k].get(c, 0), "appt": mp[k].get(c, 0)} for k, _ in months}
-        modules.append({"name": _clean(c), "source": _source(c),
+        modules.append({"name": _clean(c), "source": _source(c), "dormant": dormant,
                         "cum": {"lead": nlead, "appt": cum_pres.get(c, 0),
                                 "pres": cum_presentato.get(c, 0)},
                         "weekly": weekly, "monthly": monthly})
-    modules.sort(key=lambda m: -m["cum"]["lead"])
+    # Attivi prima, spenti in fondo; dentro ciascun gruppo per volume.
+    modules.sort(key=lambda m: (m["dormant"], -m["cum"]["lead"]))
 
     # Meta: spesa per fonte
     def meta(since_d, until_d, inc=None):
