@@ -23,7 +23,14 @@ ACTION_KEYS = {
 PROJECTS = [
     {
         "name": "Balducci",
-        "accounts": ["act_1083210079422366"],
+        # Tre account, stesso cliente: generale + borderline (comunicazioni a rischio,
+        # es. Redox) + backup 2026 (BM meglionaturale, si attiva se il principale si blocca).
+        # La spesa va sommata: serve per il costo per cliente, non per distinguerli.
+        "accounts": [
+            "act_1083210079422366",
+            "act_1356445089572988",
+            "act_1388240939955110",
+        ],
         "kpi": "purchase",
         "aliases": {},
         "exclude": [],

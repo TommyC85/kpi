@@ -27,7 +27,11 @@ API = "https://graph.facebook.com/v22.0"
 WEEKS_PER_MONTH = 30.4375 / 7  # ≈ 4.348
 
 # ── account & costanti ──────────────────────────────────────────────────────
-ACC_BALDUCCI = "act_1083210079422366"
+# Balducci ha tre account (generale + borderline + backup 2026): la spesa dei tre va
+# SOMMATA, altrimenti il costo per cliente esce falsato per difetto.
+ACC_BALDUCCI = ["act_1083210079422366",   # TMC | Bald | Generale 2
+                "act_1356445089572988",   # TMC Balducci 2 — comunicazioni borderline (Redox)
+                "act_1388240939955110"]   # TMC | Ferruccio Balducci 2026 — backup
 ACC_VARINI = "act_2975289402775458"
 ACC_PONTONI = "act_1143079700337559"
 ACC_DIDOM = ["act_3097227940528224", "act_1048267528538993"]  # Allin + DDG
@@ -80,6 +84,27 @@ def _insights(account, token, since, until, level="account"):
     d = rows[0]
     return {"spend": float(d.get("spend", 0) or 0),
             "actions": {a["action_type"]: float(a["value"]) for a in d.get("actions", [])}}
+
+
+def _insights_multi(accounts, token, since, until):
+    """Come _insights ma su più account: spend sommata, actions sommate per action_type.
+    Un cliente può avere più ad account (Balducci ne ha 3, Di Domenico 2)."""
+    if isinstance(accounts, str):
+        accounts = [accounts]
+    spend, actions, skipped = 0.0, {}, []
+    for acc in accounts:
+        try:
+            ins = _insights(acc, token, since, until)
+        except Exception as e:
+            # Un account non leggibile (token senza permessi, account chiuso) non deve far
+            # cadere tutto il cliente: lo si salta e lo si dichiara.
+            skipped.append(acc)
+            print(f"  [warn] insights {acc} non leggibile: {str(e)[:120]}")
+            continue
+        spend += ins["spend"]
+        for k, v in ins["actions"].items():
+            actions[k] = actions.get(k, 0.0) + v
+    return {"spend": spend, "actions": actions, "skipped": skipped}
 
 
 def _act(actions, keys):
@@ -140,7 +165,7 @@ def _month_windows(ref: date, n: int):
 
 # ── clienti ─────────────────────────────────────────────────────────────────
 def _balducci(token, since, until):
-    ins = _insights(ACC_BALDUCCI, token, since, until)
+    ins = _insights_multi(ACC_BALDUCCI, token, since, until)
     spend, acts = ins["spend"], ins["actions"]
     purchases = _act(acts, PURCHASE_KEYS)
     persons = _act(acts, [f"offsite_conversion.custom.{BALDUCCI_ACQUISTO_UNICO_ID}"])
@@ -196,11 +221,9 @@ def _varini(token, since, until):
 
 
 def _didomenico(token, since, until):
-    spend = purchases = 0
-    for acc in ACC_DIDOM:
-        ins = _insights(acc, token, since, until)
-        spend += ins["spend"]
-        purchases += _act(ins["actions"], PURCHASE_KEYS)
+    ins = _insights_multi(ACC_DIDOM, token, since, until)
+    spend = ins["spend"]
+    purchases = _act(ins["actions"], PURCHASE_KEYS)
     revenue = purchases * DIDOM_BOOK_PRICE
     return {
         "spend": round(spend, 2), "purchases": purchases,
