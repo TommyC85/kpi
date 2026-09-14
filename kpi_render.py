@@ -365,18 +365,26 @@ def _cards(m: dict) -> str:
     roas_pill = "good" if (V.get("roas") or 0) >= 1 else "bad"
     # Base di calcolo esplicita: il lordo resta visibile (è il numero a cui Tommaso
     # è abituato), ma profitto e ROAS girano sul netto perché l'IVA non è ricavo.
+    # L'incasso Woo è di TUTTI i canali, quindi si sottrae TUTTA la spesa adv:
+    # con la sola Meta il profitto risultava gonfiato della spesa Google.
+    v_g = V.get("spend_google") or 0
+    v_adv = ("spesa Meta " + eur(V.get("spend")) + " + Google " + eur(v_g)
+             + " = " + eur(V.get("spend_all"))) if v_g else ("spesa Meta " + eur(V.get("spend")))
     if V.get("revenue_gross") and V.get("tax"):
         v_basis = ("Incasso Woo " + eur(V["revenue_gross"]) + " − IVA " + eur(V["tax"])
-                   + " = " + eur(V["revenue"]) + " netto, − spesa Meta " + eur(V.get("spend"))
-                   + " (già netta).")
+                   + " = " + eur(V["revenue"]) + " netto, − " + v_adv + " (già nette).")
     else:
-        v_basis = "Incasso reale (WooCommerce) − spesa Meta."
+        v_basis = "Incasso reale (WooCommerce) − " + v_adv + "."
+    if V.get("google_error"):
+        # Meglio dirlo che lasciar credere che Google non abbia speso nulla.
+        v_basis += " ⚠️ Spesa Google non disponibile: profitto sovrastimato."
     varini = f"""
   <article class="card">
     <div class="card-h"><span class="idx">02</span><span class="name">Varini</span><span class="sect">Corsi chitarra · GuitarTribe</span><span class="spacer"></span>{pill(v_stat,f"{v_pct}% del target")}</div>
     <div class="kpis">
       {krow("Profitto netto / settimana",v_basis+" Sotto il target si lavora gratis.","Obiettivo","≥ "+eur(v_target_wk),"Attuale",eur(V.get("profit")),pill(v_stat,f"{v_pct}%"),star=True,hot=True)}
       {krow("ROAS reale (WooCommerce, netto)","Su incasso IVA esclusa. Break-even a 1,0 (COGS ~0 sui corsi). Sopra = spesa scalabile.","Break-even","≥ 1,0","Attuale",str(V.get("roas") or "n.d.").replace(".",","),pill(roas_pill,"Scalabile" if roas_pill=="good" else "Sotto"))}
+      {krow("Spesa pubblicitaria totale","Meta "+eur(V.get("spend"))+" + Google "+eur(V.get("spend_google"))+". L'incasso Woo arriva da tutti i canali, quindi il profitto li sottrae entrambi.","Meta",eur(V.get("spend")),"Google",eur(V.get("spend_google")),pill("warn","Google non disponibile") if V.get("google_error") else pill("good","Entrambi i canali"))}
       {krow("Fedeltà tracking (Meta vs reale)","Meta dichiara "+num(V.get("meta_purchases"))+" acquisti; ordini reali Woo "+num(V.get("orders"))+" (di cui "+num(V.get("meta_orders"))+" attribuiti a Meta).","Meta dice",num(V.get("meta_purchases")),"Reali Woo",num(V.get("orders")),pill("warn","Meta gonfia"))}
       {activity_row(V.get("activity"))}
     </div>
@@ -480,7 +488,7 @@ def _cards(m: dict) -> str:
     <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti fissati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
   </section>"""
 
-    foot = (f'<div class="foot"><b>Fonti:</b> Meta Ads · Google Ads via foglio (Pontoni) · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
+    foot = (f'<div class="foot"><b>Fonti:</b> Meta Ads · Google Ads via foglio (Pontoni + Varini) · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
             f'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su libro €{D["book_price"]:.0f}. '
             f'Costo/appuntamento Pontoni: dato di contesto (coorte matura), non un obiettivo del media buyer. '
             f'Aggiornato automaticamente ogni lunedì.</div>')
@@ -494,7 +502,7 @@ def _legend_foot(m):
     <div class="lg"><div class="kick">Livello 1 — controllo</div><h3>KPI di controllo</h3><p>CPA/CPL, % budget sui vincenti, disciplina di tracking, velocità di test, <b>traiettoria</b> verso il target: guidati dal media buyer.</p></div>
     <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti fissati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
   </section>"""
-    foot = ('<div class="foot"><b>Fonti:</b> Meta Ads · Google Ads via foglio (Pontoni) · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
+    foot = ('<div class="foot"><b>Fonti:</b> Meta Ads · Google Ads via foglio (Pontoni + Varini) · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
             'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su libro €37. '
             'Costo/appuntamento Pontoni: dato di contesto (coorte matura), non un obiettivo del media buyer. '
             'Aggiornato automaticamente ogni giorno.</div>')

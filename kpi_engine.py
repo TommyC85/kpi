@@ -4,7 +4,7 @@ Motore dati della dashboard KPI (scorecard 4 clienti).
 
 Assembla, per la settimana Lun–Dom precedente:
   - Balducci   : persone/gg (evento Acquisto_unico) + CPA + spesa
-  - Varini     : profitto reale (incasso Woo − spesa Meta) + ROAS reale
+  - Varini     : profitto reale (incasso Woo − spesa Meta − spesa Google) + ROAS reale
   - Pontoni    : costo/lead + qualità mix + funnel per modulo + trend costo/appuntamento (Odoo)
   - Di Domenico: acquisti + CPA + ROAS front-end
 
@@ -203,18 +203,39 @@ def _varini(token, since, until):
            "tax": None, "orders": None,
            "meta_orders": None, "meta_purchases": _act(ins["actions"], PURCHASE_KEYS),
            "profit": None, "roas": None}
+
+    # Spesa Google: qui si SOMMA a quella Meta, al contrario di Pontoni.
+    # Il ricavo è l'incasso WooCommerce reale, che è già di tutti i canali: se si
+    # sottrae la sola spesa Meta, il profitto risulta gonfiato esattamente della
+    # spesa Google e il confronto col target di 20k/mese è falsato.
+    gspend = 0.0
+    try:
+        import gads
+        g = gads.fetch_week(since, until, client="varini")
+        out["google"] = g
+        gspend = g["spend"] or 0.0
+    except Exception as e:
+        # Fonte giù: si degrada a Meta soltanto, ma NON in silenzio — la card
+        # mostra l'avviso, perché in quel caso il profitto è una stima ottimista.
+        out["google_error"] = str(e)[:160]
+
+    spend_all = spend + gspend
+    out["spend_google"] = round(gspend, 2)
+    out["spend_all"] = round(spend_all, 2)
+
     try:
         import woo
         w = woo.fetch_week(since, until)
         # Profitto e ROAS sul NETTO: l'IVA incassata dai clienti non è ricavo,
         # la giri allo Stato. La spesa Meta è già netta (Meta aggiunge le imposte
         # in fattura, non nell'"importo speso"), quindi ora le basi combaciano.
+        # La spesa Google dal foglio è anch'essa al netto dell'IVA.
         rev = w["real_revenue_net"]
         out.update({"revenue": rev, "revenue_gross": w["real_revenue"],
                     "tax": w["real_tax"], "orders": w["real_orders"],
                     "meta_orders": w["meta_orders"],
-                    "profit": round(rev - spend, 2),
-                    "roas": round(rev / spend, 2) if spend else None})
+                    "profit": round(rev - spend_all, 2),
+                    "roas": round(rev / spend_all, 2) if spend_all else None})
     except Exception as e:
         out["error"] = str(e)[:120]
     return out
