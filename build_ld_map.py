@@ -12,13 +12,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def get(path, **p):
+    # /sfwd-courses/{id}/users e' l'endpoint piu' pesante: WP impagina migliaia di
+    # utenti per corso e sotto carico supera abbondantemente i 45s. Timeout largo e
+    # attese piu' lunghe fra i tentativi: meglio un giro lento che un giro fallito.
     for attempt in range(5):
         try:
-            return S.get(url + path, params=p, timeout=45)
-        except Exception:
+            return S.get(url + path, params=p, timeout=90)
+        except Exception as e:
             if attempt == 4:
                 raise
-            time.sleep(3 * (attempt + 1))
+            log(f"  ! {type(e).__name__} su {path} (tentativo {attempt + 1}/5), riprovo")
+            time.sleep(5 * (attempt + 1))
 
 
 def log(m):
