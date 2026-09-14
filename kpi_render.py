@@ -341,9 +341,28 @@ def _cards(m: dict) -> str:
     cpa_prod = B.get("cpa_display") or B["cpa_product"]  # riferimento fisso €9
     cpa_pill = "good" if (cpa_prod is not None and cpa_prod <= 13) else "warn"
     b_spend_pct = round(100 * B["spend"] / wk(m["targets"]["balducci_spend"])) if B["spend"] else 0
+    # I due costi REALI: stesso numeratore (spesa Meta), denominatori diversi.
+    # Per acquisto = ordini Woo. Per cliente = persone uniche (dedup per email), quindi
+    # sempre ≥ il primo quando qualcuno ordina due volte nella stessa settimana.
+    # Il tetto €13 è lo stesso della CPA Meta: è quanto si può pagare una vendita,
+    # non un artefatto della finestra di attribuzione di Meta.
     cpa_real = round(B["spend"] / B["real_customers"], 2) if B.get("real_customers") else None
-    if B.get("real_customers") is not None:
-        real_row = krow("Reale (Woo) vs tracciato (Meta)", "Incasso reale " + eur(B.get("real_revenue")) + " · <b>CPA reale (spesa ÷ clienti Woo) " + eur(cpa_real, 2) + "</b> · clienti unici veri (per email) vs evento Meta Acquisto_unico.", "Meta (Acq.unico)", num(B["persons"]), "Reale (Woo)", num(B["real_customers"]), pill("good", "CPA reale " + eur(cpa_real, 0)))
+    cpa_real_order = round(B["spend"] / B["real_orders"], 2) if B.get("real_orders") else None
+    _p = lambda v: pill("good", "Sotto il tetto") if (v is not None and v <= 13) else pill("bad", "Sopra il tetto")
+    if B.get("real_orders"):
+        real_row = (
+            krow("CPA reale per acquisto",
+                 "Spesa Meta " + eur(B["spend"]) + " ÷ <b>" + num(B["real_orders"]) +
+                 " ordini reali WooCommerce</b>. Quanto costa davvero una vendita: Meta ne dichiara " +
+                 num(B["purchases"]) + " e mostra " + eur(cpa_prod, 0) + ".",
+                 "Tetto", "≤ €13", "Attuale", eur(cpa_real_order, 2), _p(cpa_real_order), hot=True)
+            + krow("Costo per cliente unico",
+                   "Stessa spesa ÷ <b>" + num(B["real_customers"]) +
+                   " clienti unici</b> (deduplicati per email). Più alto della CPA per acquisto"
+                   " quando la stessa persona ordina più volte nella settimana. Incasso reale " +
+                   eur(B.get("real_revenue")) + ".",
+                   "Tetto", "≤ €13", "Attuale", eur(cpa_real, 2), _p(cpa_real))
+        )
     else:
         real_row = krow("Reale (WooCommerce)", "Connessione Woo non disponibile.", "—", "—", "Stato", "n.d.", pill("warn", "assente"))
     balducci = f"""
@@ -351,8 +370,8 @@ def _cards(m: dict) -> str:
     <div class="card-h"><span class="idx">03</span><span class="name">Balducci</span><span class="sect">Integratori naturali</span><span class="spacer"></span>{pill(b_stat,f"{b_pct}% del volume")}</div>
     <div class="kpis">
       {krow("Clienti unici / giorno","North Star: 50 <b>persone</b>/giorno. Attuale = "+b_src+"; "+num(B.get("real_customers") or B["persons"])+" persone/sett.","Obiettivo","50/gg","Attuale",f"{b_pd:g}/gg",pill(b_stat,f"{b_pct}%"),star=True,hot=True)}
-      {krow("CPA che monitoro su Meta (per acquisto)","Media account (riferimento €9). Per persona sale a ~"+eur(B["cpa_person"],2)+".","Tetto","≤ €13","Attuale",eur(cpa_prod,0),pill(cpa_pill,"Ottimo" if cpa_pill=="good" else "Al limite"))}
       {real_row}
+      {krow("CPA dichiarata da Meta — riferimento","Media account (€9 fisso), sulla finestra di attribuzione di Meta e sui suoi "+num(B["purchases"])+" acquisti dichiarati. Serve a confronto: il costo vero è nelle due righe sopra.","Tetto","≤ €13","Attuale",eur(cpa_prod,0),pill(cpa_pill,"Ottimo" if cpa_pill=="good" else "Al limite"))}
       {krow("Spesa / settimana verso 20k/mese","",  "Target",eur(wk(m["targets"]["balducci_spend"])),"Attuale",eur(B["spend"]),pill("warn",f"{b_spend_pct}%"))}
       {activity_row(B.get("activity"))}
     </div>
