@@ -214,6 +214,12 @@ def _varini(token, since, until):
         g = gads.fetch_week(since, until, client="varini")
         out["google"] = g
         gspend = g["spend"] or 0.0
+        if g.get("stale"):
+            # Foglio fermo: le righe della settimana non ci sono, quindi la spesa
+            # esce €0. Trattarlo come "non disponibile" e non come "zero speso",
+            # altrimenti il profitto risulta gonfiato senza che nulla lo dica.
+            out["google_error"] = ("foglio fermo al " + (g.get("last_day") or "?")
+                                   + ": lo script in Google Ads non sta scrivendo")
     except Exception as e:
         # Fonte giù: si degrada a Meta soltanto, ma NON in silenzio — la card
         # mostra l'avviso, perché in quel caso il profitto è una stima ottimista.

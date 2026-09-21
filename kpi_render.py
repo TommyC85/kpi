@@ -217,10 +217,17 @@ def google_row(P):
            f"conversioni sono dichiarate da Google e in Odoo non arriva nessuna "
            f"campagna Google, quindi qui manca il costo/appuntamento reale. "
            f"CPC {eur(g.get('cpc'),2)} · {camp}")
+    # Foglio fermo = spesa sottostimata anche qui, e in silenzio: la riga lo dice
+    # e la pillola smette di rassicurare.
+    if g.get("stale"):
+        sub += (" ⚠️ <b>Foglio fermo al " + (g.get("last_day") or "?")
+                + "</b>: lo script in Google Ads non sta scrivendo, la spesa qui sotto"
+                " è incompleta.")
     return krow("Google Ads · spesa e conversioni dichiarate", sub,
                 "Costo/conv.", eur(cpa, 2) if cpa else "—",
                 "Spesa/sett", eur(g["spend"]),
-                '<span class="pill p-neutral">affiancato</span>')
+                '<span class="pill p-warn">foglio fermo</span>' if g.get("stale")
+                else '<span class="pill p-neutral">affiancato</span>')
 
 
 def activity_row(a):
@@ -396,7 +403,9 @@ def _cards(m: dict) -> str:
         v_basis = "Incasso reale (WooCommerce) − " + v_adv + "."
     if V.get("google_error"):
         # Meglio dirlo che lasciar credere che Google non abbia speso nulla.
-        v_basis += " ⚠️ Spesa Google non disponibile: profitto sovrastimato."
+        # Il motivo per esteso: "€0" e "non lo so" si correggono in modi diversi.
+        v_basis += (" ⚠️ Spesa Google non disponibile (" + V["google_error"]
+                    + "): profitto sovrastimato.")
     varini = f"""
   <article class="card">
     <div class="card-h"><span class="idx">02</span><span class="name">Varini</span><span class="sect">Corsi chitarra · GuitarTribe</span><span class="spacer"></span>{pill(v_stat,f"{v_pct}% del target")}</div>

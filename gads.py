@@ -136,7 +136,18 @@ def fetch_week(since_date: str, until_date: str, client: str = "pontoni") -> dic
     """Spesa e conversioni Google nell'intervallo (date incluse, ora di Roma)."""
     since = datetime.date.fromisoformat(since_date)
     until = datetime.date.fromisoformat(until_date)
-    rows = [x for x in _fetch(client) if since <= _day(x["data"]) <= until]
+    allrows = _fetch(client)
+    rows = [x for x in allrows if since <= _day(x["data"]) <= until]
+
+    # Fino a dove arriva DAVVERO il foglio. Senza questo, uno script fermo in
+    # Google Ads produce zero righe nell'intervallo e la spesa risulta €0: un
+    # numero sbagliato indistinguibile da "quella settimana non ho speso".
+    # Successo il 2026-09-21: lo script Varini non era stato programmato dopo il
+    # primo giro a mano, il foglio era fermo al 13/09 e la dashboard ha dichiarato
+    # Google €0 con la spunta verde per una settimana intera.
+    days = sorted({_day(x["data"]) for x in allrows})
+    last_day = days[-1] if days else None
+    stale = last_day is None or last_day < until
 
     spend = sum(float(x.get("costo_eur") or 0) for x in rows)
     conv = sum(float(x.get("conversioni") or 0) for x in rows)
@@ -150,6 +161,10 @@ def fetch_week(since_date: str, until_date: str, client: str = "pontoni") -> dic
         "cpc": round(spend / clicks, 2) if clicks else None,
         "campaigns": campaigns,
         "days": len({_day(x["data"]) for x in rows}),
+        # Copertura del foglio: chi legge deve poter distinguere "zero speso"
+        # da "lo script non scrive più".
+        "last_day": last_day.isoformat() if last_day else None,
+        "stale": stale,
     }
 
 
