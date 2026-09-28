@@ -78,6 +78,8 @@ def main():
     model["generated_at"] = datetime.now(timezone.utc).isoformat()
 
     p = model["pontoni"]
+    if model["balducci"].get("woo_error"):
+        print(f"(avviso) Woo Balducci non disponibile: {model['balducci']['woo_error']}")
     if p.get("odoo_error"):
         print(f"(avviso) Odoo non disponibile: {p['odoo_error']}")
     else:

@@ -49,8 +49,11 @@ jobs:
           ODOO_DB: ${{ secrets.ODOO_DB }}
           ODOO_USER: ${{ secrets.ODOO_USER }}
           ODOO_API_KEY: ${{ secrets.ODOO_API_KEY }}
+          WC_BALDUCCI_URL: ${{ secrets.WC_BALDUCCI_URL }}
+          WC_BALDUCCI_KEY: ${{ secrets.WC_BALDUCCI_KEY }}
+          WC_BALDUCCI_SECRET: ${{ secrets.WC_BALDUCCI_SECRET }}
         run: |
-          for v in SUPABASE_URL SUPABASE_KEY WC_URL WC_KEY WC_SECRET FTP_HOST FTP_USER FTP_PASS FTP_DIR ODOO_URL ODOO_DB ODOO_USER ODOO_API_KEY; do
+          for v in SUPABASE_URL SUPABASE_KEY WC_URL WC_KEY WC_SECRET WC_BALDUCCI_URL WC_BALDUCCI_KEY WC_BALDUCCI_SECRET FTP_HOST FTP_USER FTP_PASS FTP_DIR ODOO_URL ODOO_DB ODOO_USER ODOO_API_KEY; do
             val="${!v}"
             if [ -z "$val" ]; then echo "❌ $v = VUOTO"; else echo "✅ $v = presente (${#val} char)"; fi
           done
