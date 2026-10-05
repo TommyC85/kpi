@@ -489,15 +489,24 @@ def _cards(m: dict) -> str:
     cpa_pill_d = "good" if (cpa is not None and cpa <= 65) else "bad"
     roas = D["roas"]
     roas_pill_d = "good" if (roas is not None and roas >= 0.7) else "bad"
+    if D.get("basis", "").startswith("WooCommerce"):
+        d_basis = (f"Ordini veri del dominio libri (tutti, anche da email e PayPal/Apple Pay); "
+                   f"Meta ne dichiara {num(D.get('meta_purchases'))}.")
+        d_roas_note = (f"Incasso libri {eur(D.get('revenue'), 0)} ÷ spesa Meta {eur(D['spend'], 0)}. "
+                       "Monetizzazione a valle (consulenze).")
+    else:
+        d_basis = "⚠️ Ordini shop non disponibili: acquisti dichiarati da Meta."
+        d_roas_note = ("⚠️ Stima: acquisti Meta × libro €" + f"{D['book_price']:.0f}" +
+                       ". Monetizzazione a valle (consulenze).")
     sp_pill_d = "good" if abs(D["spend"] - wk(m["targets"]["didom_spend"])) < wk(m["targets"]["didom_spend"]) * 0.2 else "warn"
     didom = f"""
   <article class="card">
     <div class="card-h"><span class="idx">04</span><span class="name">Di Domenico</span><span class="sect">Editoria B2B · Studio GD</span><span class="spacer"></span>{pill(d_stat,f"{d_pct}% del target")}</div>
     <div class="kpis">
-      {krow("Acquirenti libro / settimana","Far entrare gente nell'ecosistema. Il backend consulenze è del cliente.","Obiettivo","~"+f"{wk(m['targets']['didom_purchases']):.0f}","Attuale",num(D["purchases"]),pill(d_stat,f"{d_pct}%"),star=True,hot=True)}
+      {krow("Acquirenti libro / settimana","Far entrare gente nell'ecosistema. Il backend consulenze è del cliente. "+d_basis,"Obiettivo","~"+f"{wk(m['targets']['didom_purchases']):.0f}","Attuale",num(D["purchases"]),pill(d_stat,f"{d_pct}%"),star=True,hot=True)}
       {krow("CPA (costo per acquisto)","","Obiettivo","≤ €65","Attuale",eur(cpa,2),pill(cpa_pill_d,"OK" if cpa_pill_d=="good" else "Sopra"))}
       {krow("Spesa / settimana","","Obiettivo",eur(wk(m["targets"]["didom_spend"])),"Attuale",eur(D["spend"]),pill(sp_pill_d,"In linea" if sp_pill_d=="good" else "Fuori"))}
-      {krow("ROAS front-end (soglia, non profitto)","Libro €"+f"{D['book_price']:.0f}"+", monetizzazione a valle (consulenze).","Soglia","≥ 0,7","Attuale",str(roas or "n.d.").replace(".",","),pill(roas_pill_d,"OK" if roas_pill_d=="good" else "Sotto soglia"))}
+      {krow("ROAS front-end (soglia, non profitto)",d_roas_note,"Soglia","≥ 0,7","Attuale",str(roas or "n.d.").replace(".",","),pill(roas_pill_d,"OK" if roas_pill_d=="good" else "Sotto soglia"))}
       {activity_row(D.get("activity"))}
     </div>
   </article>"""
@@ -517,7 +526,7 @@ def _cards(m: dict) -> str:
   </section>"""
 
     foot = (f'<div class="foot"><b>Fonti:</b> Meta Ads · Google Ads via foglio (Pontoni + Varini) · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
-            f'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su libro €{D["book_price"]:.0f}. '
+            'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su tutto l\'incasso libri. '
             f'Costo/appuntamento Pontoni: dato di contesto (coorte matura), non un obiettivo del media buyer. '
             f'Aggiornato automaticamente ogni lunedì.</div>')
 
@@ -531,7 +540,7 @@ def _legend_foot(m):
     <div class="lg"><div class="kick">Livello 2 — business</div><h3>KPI di risultato</h3><p>Appuntamenti fissati (Pontoni), consulenze chiuse (Di Domenico), LTV: dipendono anche dal cliente.</p></div>
   </section>"""
     foot = ('<div class="foot"><b>Fonti:</b> Meta Ads · Google Ads via foglio (Pontoni + Varini) · WooCommerce (Varini) · Odoo sola lettura (Pontoni). '
-            'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su libro €37. '
+            'Balducci per-persona via evento Acquisto_unico. Di Domenico ROAS su tutto l\'incasso libri. '
             'Costo/appuntamento Pontoni: dato di contesto (coorte matura), non un obiettivo del media buyer. '
             'Aggiornato automaticamente ogni giorno.</div>')
     return legend + foot

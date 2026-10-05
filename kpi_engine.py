@@ -6,7 +6,7 @@ Assembla, per la settimana Lun–Dom precedente:
   - Balducci   : persone/gg (evento Acquisto_unico) + CPA + spesa
   - Varini     : profitto reale (incasso Woo − spesa Meta − spesa Google) + ROAS reale
   - Pontoni    : costo/lead + qualità mix + funnel per modulo + trend costo/appuntamento (Odoo)
-  - Di Domenico: acquisti + CPA + ROAS front-end
+  - Di Domenico: acquisti + CPA + ROAS front-end su TUTTI gli ordini del dominio libri
 
 Resiliente: se una fonte (es. Odoo) è irraggiungibile, i suoi campi valgono None
 e la dashboard esce comunque con le altre metriche.
@@ -247,16 +247,54 @@ def _varini(token, since, until):
     return out
 
 
+def _didomenico_shop(since, until):
+    """Ordini veri del dominio libri per la settimana: TUTTI, non solo gli attribuiti
+    a Meta. Gli ordini da email li generano le mail che mandiamo noi ai lead delle ads,
+    e quelli "diretti" sono quasi tutti PayPal/Apple Pay, che escono dal sito e ne
+    perdono la provenienza. Prima WooCommerce diretto (se ci sono i secret
+    WC_DIDOMENICO_*), altrimenti la riga che il Riepilogo Lunedì salva su Supabase."""
+    if os.environ.get("WC_DIDOMENICO_URL"):
+        import woo
+        w = woo.fetch_week(since, until, prefix="DIDOMENICO_")
+        return {"orders": w["real_orders"], "revenue": w["real_revenue"],
+                "meta_orders": w["meta_orders"], "source": "WooCommerce"}
+    import requests
+    url, key = os.environ["SUPABASE_URL"].rstrip("/"), os.environ["SUPABASE_KEY"]
+    r = requests.get(f"{url}/rest/v1/snapshots", timeout=30,
+                     headers={"apikey": key, "Authorization": f"Bearer {key}"},
+                     params={"project": "eq.Di Domenico", "level": "eq.client",
+                             "week_start": f"eq.{since}", "week_end": f"eq.{until}",
+                             "select": "real_orders,real_revenue,meta_orders"})
+    r.raise_for_status()
+    rows = r.json()
+    if not rows or rows[0]["real_orders"] is None:
+        return None
+    return {"orders": rows[0]["real_orders"], "revenue": float(rows[0]["real_revenue"]),
+            "meta_orders": rows[0]["meta_orders"], "source": "WooCommerce (via Riepilogo)"}
+
+
 def _didomenico(token, since, until):
     ins = _insights_multi(ACC_DIDOM, token, since, until)
     spend = ins["spend"]
-    purchases = _act(ins["actions"], PURCHASE_KEYS)
-    revenue = purchases * DIDOM_BOOK_PRICE
+    meta_purchases = _act(ins["actions"], PURCHASE_KEYS)
+    try:
+        shop = _didomenico_shop(since, until)
+    except Exception as e:
+        shop = None
+        print(f"Di Domenico: ordini shop non disponibili ({str(e)[:120]})")
+    if shop:
+        # Base vera: ordini e incasso del dominio libri, tutti.
+        purchases, revenue, basis = shop["orders"], shop["revenue"], shop["source"]
+    else:
+        # Ripiego dichiarato: acquisti tracciati da Meta × prezzo del libro.
+        purchases, revenue, basis = meta_purchases, meta_purchases * DIDOM_BOOK_PRICE, "Meta (stima)"
     return {
         "spend": round(spend, 2), "purchases": purchases,
         "cpa": round(spend / purchases, 2) if purchases else None,
         "roas": round(revenue / spend, 2) if spend else None,
-        "book_price": DIDOM_BOOK_PRICE,
+        "revenue": round(revenue, 2), "meta_purchases": meta_purchases,
+        "shop_meta_orders": shop["meta_orders"] if shop else None,
+        "basis": basis, "book_price": DIDOM_BOOK_PRICE,
     }
 
 
