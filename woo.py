@@ -50,7 +50,16 @@ def fetch_week(since_date: str, until_date: str, prefix: str = "") -> dict:
         r = requests.get(endpoint, params=params, verify=certifi.where(), timeout=90)
         if r.status_code >= 300:
             raise RuntimeError(f"WooCommerce {r.status_code}: {r.text[:200]}")
-        batch = r.json()
+        # Un 2xx che non è JSON (es. pagina anti-bot dell'hosting, che risponde 202)
+        # faceva solo «Expecting value»: qui si dice cosa è arrivato davvero.
+        try:
+            batch = r.json()
+        except ValueError:
+            body = " ".join(r.text[:300].split())
+            raise RuntimeError(
+                f"WooCommerce {r.status_code} non JSON "
+                f"(content-type {r.headers.get('content-type', '?')}, "
+                f"url finale {r.url.split('?')[0]}): {body}")
         if not isinstance(batch, list) or not batch:
             break
         orders.extend(batch)

@@ -192,7 +192,7 @@ def _balducci(token, since, until):
             "real_persons_day": round(w["real_customers"] / 7, 1) if w["real_customers"] else 0,
         })
     except Exception as e:
-        out["woo_error"] = str(e)[:120]
+        out["woo_error"] = str(e)[:500]
     return out
 
 
