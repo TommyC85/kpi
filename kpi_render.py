@@ -356,7 +356,16 @@ def _cards(m: dict) -> str:
     cpa_real = round(B["spend"] / B["real_customers"], 2) if B.get("real_customers") else None
     cpa_real_order = round(B["spend"] / B["real_orders"], 2) if B.get("real_orders") else None
     _p = lambda v: pill("good", "Sotto il tetto") if (v is not None and v <= 13) else pill("bad", "Sopra il tetto")
-    if B.get("real_orders"):
+    if B.get("real_orders") and not B.get("real_customers"):
+        # Ripiego: ordini e incasso dalla riga del Riepilogo, senza clienti unici.
+        real_row = krow("CPA reale per acquisto",
+                        "Spesa Meta " + eur(B["spend"]) + " ÷ <b>" + num(B["real_orders"]) +
+                        " ordini reali WooCommerce</b> (letti dal Riepilogo: da GitHub il sito"
+                        " risponde col captcha). Meta ne dichiara " + num(B["purchases"]) +
+                        " e mostra " + eur(cpa_prod, 0) + ". Incasso reale " +
+                        eur(B.get("real_revenue")) + "; clienti unici non disponibili.",
+                        "Tetto", "≤ €13", "Attuale", eur(cpa_real_order, 2), _p(cpa_real_order), hot=True)
+    elif B.get("real_orders"):
         real_row = (
             krow("CPA reale per acquisto",
                  "Spesa Meta " + eur(B["spend"]) + " ÷ <b>" + num(B["real_orders"]) +

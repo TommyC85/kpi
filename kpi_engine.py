@@ -193,7 +193,32 @@ def _balducci(token, since, until):
         })
     except Exception as e:
         out["woo_error"] = str(e)[:500]
+        # Da GitHub l'anti-bot di SiteGround risponde col captcha: ripiego sulla riga
+        # che il Riepilogo salva su Supabase (riempita anche a mano dal Mac). Lì ci
+        # sono ordini e incasso, non i clienti unici: il North Star resta su Meta.
+        try:
+            rows = _riepilogo_row("Balducci", since, until)
+        except Exception as e2:
+            rows = None
+            out["woo_error"] += f" · ripiego Supabase fallito: {str(e2)[:120]}"
+        if rows and rows.get("real_orders") is not None:
+            out.update({"real_orders": rows["real_orders"],
+                        "real_revenue": float(rows["real_revenue"]),
+                        "woo_source": "WooCommerce (via Riepilogo)"})
     return out
+
+
+def _riepilogo_row(project, since, until):
+    """Riga cliente del Riepilogo Lunedì su Supabase per la settimana, o None."""
+    url, key = os.environ["SUPABASE_URL"].rstrip("/"), os.environ["SUPABASE_KEY"]
+    r = requests.get(f"{url}/rest/v1/snapshots", timeout=30,
+                     headers={"apikey": key, "Authorization": f"Bearer {key}"},
+                     params={"project": f"eq.{project}", "level": "eq.client",
+                             "week_start": f"eq.{since}", "week_end": f"eq.{until}",
+                             "select": "real_orders,real_revenue,meta_orders"})
+    r.raise_for_status()
+    rows = r.json()
+    return rows[0] if rows else None
 
 
 def _varini(token, since, until):

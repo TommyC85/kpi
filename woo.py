@@ -12,6 +12,7 @@ Ritorna, per un intervallo di date (inclusi):
 """
 
 import os
+import re
 
 import certifi
 import requests
@@ -25,6 +26,12 @@ def _is_meta(src: str) -> bool:
 def _cfg(prefix=""):
     return (os.environ[f"WC_{prefix}URL"].rstrip("/"),
             os.environ[f"WC_{prefix}KEY"], os.environ[f"WC_{prefix}SECRET"])
+
+
+def _redact(text):
+    """Le chiavi viaggiano nell'URL e il captcha le rimanda indietro: mai nei log
+    (il repo è pubblico, e così i log di GitHub)."""
+    return re.sub(r"(consumer_(?:key|secret)(?:%3D|=))[^&\s\"]*", r"\1***", text)
 
 
 def _attr_source(order):
@@ -49,13 +56,13 @@ def fetch_week(since_date: str, until_date: str, prefix: str = "") -> dict:
         }
         r = requests.get(endpoint, params=params, verify=certifi.where(), timeout=90)
         if r.status_code >= 300:
-            raise RuntimeError(f"WooCommerce {r.status_code}: {r.text[:200]}")
+            raise RuntimeError(f"WooCommerce {r.status_code}: {_redact(r.text[:200])}")
         # Un 2xx che non è JSON (es. pagina anti-bot dell'hosting, che risponde 202)
         # faceva solo «Expecting value»: qui si dice cosa è arrivato davvero.
         try:
             batch = r.json()
         except ValueError:
-            body = " ".join(r.text[:300].split())
+            body = _redact(" ".join(r.text[:300].split()))
             raise RuntimeError(
                 f"WooCommerce {r.status_code} non JSON "
                 f"(content-type {r.headers.get('content-type', '?')}, "

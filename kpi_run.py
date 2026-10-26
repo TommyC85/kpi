@@ -80,6 +80,8 @@ def main():
     p = model["pontoni"]
     if model["balducci"].get("woo_error"):
         print(f"(avviso) Woo Balducci non disponibile: {model['balducci']['woo_error']}")
+        if model["balducci"].get("woo_source"):
+            print(f"  → ripiego Supabase: {model['balducci']['real_orders']} ordini")
     if p.get("odoo_error"):
         print(f"(avviso) Odoo non disponibile: {p['odoo_error']}")
     else:
